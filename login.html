@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeadSnipe - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7C3AED;
+            --bg: #F9FAFB;
+            --text: #111827;
+            --text-muted: #6B7280;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .google-btn:hover {
+            background: #F3F4F6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .google-btn img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .footer-text {
+            margin-top: 32px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .footer-text a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .error-msg {
+            color: #EF4444;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        /* Glassmorphism Background */
+        .blobs {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: var(--primary);
+            filter: blur(80px);
+            opacity: 0.15;
+            border-radius: 50%;
+        }
+
+        .blob-1 { top: -100px; right: -100px; background: #3B82F6; }
+        .blob-2 { bottom: -100px; left: -100px; background: #7C3AED; }
+    </style>
+</head>
+<body>
+    <div class="blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="login-card">
+        <div class="logo">Lead<span>Snipe</span></div>
+        <div class="subtitle">Log in to find your target leads in seconds.</div>
+        
+        <button class="google-btn" id="google-login">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Sign in with Google
+        </button>
+
+        <div id="error-msg" class="error-msg"></div>
+
+        <div class="footer-text">
+            Don't have an account? <a href="#">Create App</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, googleProvider, signInWithPopup } from './lib/firebase.js';
+
+        const loginBtn = document.getElementById('google-login');
+        const errorMsg = document.getElementById('error-msg');
+
+        loginBtn.addEventListener('click', async () => {
+            try {
+                loginBtn.style.opacity = '0.7';
+                loginBtn.innerText = 'Signing in...';
+                
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+                console.log('User signed in:', user);
+                
+                // Redirect to dashboard
+                window.location.href = './leadsnipe_homescreen_complete.html';
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMsg.innerText = error.message;
+                errorMsg.style.display = 'block';
+                loginBtn.style.opacity = '1';
+                loginBtn.innerText = 'Sign in with Google';
+            }
+        });
+
+        // If already logged in, redirect to dashboard
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                window.location.href = './leadsnipe_homescreen_complete.html';
+            }
+        });
+    </script>
+</body>
+</html>

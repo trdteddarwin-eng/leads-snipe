@@ -1,0 +1,257 @@
+# Cold Outreach Email Guide for HVAC/Plumber/Electrician
+
+## Core Philosophy: Diagnostic Observation, Not Sales Pitch
+
+For prospects who **don't know they need your solution**, shift from "sales pitch" to "diagnostic observation." Your goal is to find a specific trigger on their website and use it to reveal a hidden operational cost they're ignoring.
+
+---
+
+## Part 1: Website Triggers - What to Look For
+
+Before writing ANY email, audit their website for these signals:
+
+### The Trigger Checklist
+
+| Website Section | What to Look For | The Hidden Pain | Email Hook |
+|-----------------|------------------|-----------------|------------|
+| **Careers/Hiring** | Job posts for Receptionist, SDR, Admin | Workflow chaos, drowning in calls | "Saw you're hiring a receptionist—need a bridge solution?" |
+| **Contact/Footer** | "24/7 Service" but 9-5 hours listed | Missing after-hours calls, paying overtime | "How do you handle the 2am emergency calls?" |
+| **News/Press** | Awards, funding, new locations | Growing pains, more leads than capacity | "Congrats on the expansion—bet the phones are ringing off the hook" |
+| **Tech Stack** | CRM tools (ServiceTitan, Housecall Pro) | Integration friction, manual data entry | "I see you use ServiceTitan; we integrate natively" |
+| **Contact Form** | Submit a test lead, time the response | Speed-to-lead failure (>5 min = 80% loss) | "I submitted an inquiry and noticed it took X hours..." |
+| **About Us** | Founder's mission, "instant response" claims | Gap between promise and reality | "Love your focus on speed—our tool aligns with that mission" |
+
+### The Speed-to-Lead Test (Empirical Proof)
+1. Submit a dummy inquiry on their contact form
+2. Time how long it takes to get a response
+3. If >5 minutes: "Data shows waiting just 5 minutes drops lead qualification by 80%"
+
+### Pro Tip: Don't Just Observe—Connect to Business Implications
+- **Bad:** "I saw you are hiring."
+- **Good:** "I saw you're hiring SDRs—usually that means your current team is drowning in lead volume and response times are slipping."
+
+---
+
+## Part 2: Email Structure (Problem-Agitation-Solution)
+
+### A. The Hook (The Observation)
+- Prove you're human and did research
+- Reference the SPECIFIC trigger you found
+- Examples:
+  - "I noticed you're currently hiring for a front desk role..."
+  - "Saw on your site that you just opened a location in [City]..."
+  - "I submitted a test inquiry and noticed..."
+
+### B. The Insight (The Bridge)
+- Connect observation to hidden cost
+- Illuminate the need they didn't know they had
+- Examples:
+  - "Usually, when teams scale that department, response times start slipping."
+  - "Most firms find that managing 24/7 coverage manually eats into margins via overtime."
+
+### C. The Pain Bridge (Quantified)
+- Use hard numbers:
+  - **85%** of callers hang up if they hit voicemail
+  - **27%** of calls missed by contractors
+  - **5 minutes** wait = 80% drop in lead qualification
+  - **391%** conversion increase with sub-1-minute response
+  - **$300-$1,200** lost per missed call
+
+### D. The Solution (One Sentence)
+- "We help [trade] contractors capture every lead with an AI receptionist that handles intake 24/7, indistinguishable from a human."
+
+### E. Call to Action + Links (ALWAYS INCLUDE)
+- ONE low-friction question
+- **Free Demo:** tedca.org
+- **Book a Call:** https://cal.com/ted-charles-enqyjn/30min
+
+### F. Sign-Off
+- "Best, Tedca" or "Cheers, Tedca"
+
+---
+
+## Part 3: Trigger-Based Templates
+
+### Template 1: The "Hiring" Trigger
+*They think they need a person; they need AI*
+
+**Subject:** question about your receptionist post
+
+```
+Hi [Name],
+
+I noticed on your careers page that [Company Name] is hiring a new front desk receptionist.
+
+Typically, when firms are hiring for this role, it's because the current team is overwhelmed by inbound call volume—which often means missed calls and lost revenue while you wait to find the right candidate.
+
+We help contractors deploy an AI receptionist to handle that overflow instantly, saving the cost of an additional headcount while capturing 100% of leads.
+
+Worth a conversation before you finalize that hire?
+
+Free demo: tedca.org
+Book a call: https://cal.com/ted-charles-enqyjn/30min
+
+Best,
+Tedca
+```
+
+---
+
+### Template 2: The "Speed-to-Lead" Test
+*You have empirical proof of their failure*
+
+**Subject:** missed inquiry
+
+```
+Hi [Name],
+
+I submitted a test inquiry through your website earlier today to see how your intake process works.
+
+I noticed it took about [X] hours to get a response. Data shows that waiting just 5 minutes drops lead qualification rates by 80%. You're likely paying for leads that are dying on the vine.
+
+We help teams automate that initial outreach to hit the "sub-60-second" response window every time.
+
+See how it works: tedca.org
+Or book a quick call: https://cal.com/ted-charles-enqyjn/30min
+
+Best,
+Tedca
+```
+
+---
+
+### Template 3: The "Expansion" Trigger
+*Growth creates chaos*
+
+**Subject:** new [city] location
+
+```
+Hi [Name],
+
+Saw the news about the new location in [City]—congrats on the growth.
+
+With that kind of expansion, maintaining consistent lead handling across multiple locations usually becomes a logistical nightmare.
+
+We help contractors centralize their intake during expansion, ensuring no leads fall through the cracks during the transition.
+
+Curious if you have a strategy for the increased call volume?
+
+Free demo: tedca.org
+Book a call: https://cal.com/ted-charles-enqyjn/30min
+
+Best,
+Tedca
+```
+
+---
+
+### Template 4: The "Operational Reality" Approach
+*Can't answer phone while on a job*
+
+**Subject:** missed calls at [Company Name]
+
+```
+Hi [Name],
+
+I'm guessing you often have to choose between answering the phone and finishing a job on-site.
+
+85% of callers hang up if they hit voicemail—they just call the next [trade] on Google. If that missed call was an emergency job, that's $1,200+ walking out the door.
+
+We help contractors capture every lead with an AI receptionist that handles intake 24/7, indistinguishable from a human.
+
+Worth seeing how it works?
+
+Free demo: tedca.org
+Book a call: https://cal.com/ted-charles-enqyjn/30min
+
+Best,
+Tedca
+```
+
+---
+
+### Template 5: The "After-Hours" Angle
+*Emergency work at night/weekends*
+
+**Subject:** after-hours dispatch question
+
+```
+Hi [Name],
+
+I was looking at [Company Name]'s site and noticed you offer emergency services.
+
+How do you handle calls after 5 PM? Most contractors miss ~27% of inbound calls, and voicemail means losing those $500+ emergency jobs to competitors who pick up immediately.
+
+Our AI Voice Assistant answers 24/7, qualifies the emergency, and books the job directly into your calendar.
+
+Free demo: tedca.org
+Book a call: https://cal.com/ted-charles-enqyjn/30min
+
+Cheers,
+Tedca
+```
+
+---
+
+### Template 6: The "Ad Spend" Trigger
+*They're running Google Ads*
+
+**Subject:** wasted ad spend
+
+```
+Hi [Name],
+
+I noticed [Company Name] is bidding on "emergency [service]" keywords in [City].
+
+If those paid clicks are hitting voicemail because your team is busy, you're essentially paying to send leads to your competitors. Response under 1 minute increases conversion by 391%.
+
+We deploy AI receptionists to ensure every paid lead gets an instant answer.
+
+Free demo: tedca.org
+Book a call: https://cal.com/ted-charles-enqyjn/30min
+
+Best,
+Tedca
+```
+
+---
+
+## Part 4: Critical Rules
+
+### Do's
+| Rule | Why |
+|------|-----|
+| Subject: lowercase, 3-5 words | Looks personal, not marketing |
+| Under 75 words | Respect their time, mobile-friendly |
+| ONE CTA only | Don't overwhelm |
+| Include both links | tedca.org + cal.com |
+| Connect observation to $$ | Make the pain tangible |
+
+### Don'ts
+| Avoid | Why |
+|-------|-----|
+| "I hope you are well" | Wastes preview text |
+| False urgency ("last chance!") | Triggers spam filters |
+| Flattery ("impressive legacy!") | Feels generic |
+| Multiple questions | Reduces response rate |
+| Long paragraphs | Lost on mobile |
+
+---
+
+## Part 5: Follow-Up Sequence
+
+- **Day 1:** Initial email (use trigger-based template)
+- **Day 3:** Short bump with stat
+  - "Hey [Name], quick follow-up. Did you know voicemail has a 93% failure rate? Demo at tedca.org"
+- **Day 7:** Case study angle
+  - "Hey [Name], just helped another [City] contractor recover $4K/month in missed calls. tedca.org"
+- **Day 14:** Break-up email
+  - "Hey [Name], I'll assume timing isn't right. If call handling ever becomes a priority, I'm at tedca.org"
+
+---
+
+## Sender Info
+
+**Name:** Tedca
+**Website:** tedca.org
+**Booking Link:** https://cal.com/ted-charles-enqyjn/30min
