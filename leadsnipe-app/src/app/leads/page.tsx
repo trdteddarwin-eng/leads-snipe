@@ -1,18 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-    Users,
-    Search,
-    Plus,
-    MoreVertical,
-    Building2,
-    Globe,
-    Mail,
-    Phone,
-    CheckCircle2,
-    ExternalLink
-} from 'lucide-react';
+import { Search, ChevronRight, MoreHorizontal, ExternalLink } from 'lucide-react';
 
 export default function LeadsPage() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -26,80 +15,62 @@ export default function LeadsPage() {
     ];
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-12 animate-fade-in">
+        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-[3px] border-black dark:border-black pb-8">
+            <div className="flex justify-between items-end pb-8 border-b border-neutral-200">
                 <div>
-                    <h1 className="text-4xl font-black uppercase tracking-tighter text-black dark:text-black">Database_Leads</h1>
-                    <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-2 font-mono">Total_Enriched_Entities: {leads.length}</p>
+                    <h1 className="text-4xl font-black text-neutral-900 tracking-tighter">
+                        Lead Database
+                    </h1>
+                    <p className="text-xs text-neutral-500 mt-2 font-bold uppercase tracking-widest">
+                        Total Enriched Entities: <span className="text-neutral-900">{leads.length}</span>
+                    </p>
                 </div>
-                <button className="bg-black dark:bg-black text-white dark:text-white font-black py-4 px-8 text-xs uppercase tracking-[0.2em] hover:opacity-80 transition-all font-mono">
-                    Snipe_New
-                </button>
-            </div>
-
-            {/* Filters & Search */}
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-0 border-[2px] border-black dark:border-black">
-                <div className="relative">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <div className="relative max-w-sm w-full">
+                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                     <input
                         type="text"
-                        placeholder="SEARCH_BY_QUERY"
-                        className="w-full pl-16 pr-6 py-6 bg-transparent border-none focus:ring-0 text-sm font-bold placeholder:text-neutral-300 uppercase font-mono text-black dark:text-black"
+                        placeholder="Search entities..."
+                        className="w-full h-12 bg-white border border-neutral-200 rounded-2xl pl-13 pr-4 text-sm font-bold outline-none focus:border-black focus:ring-4 focus:ring-black/5 transition-all"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <button className="bg-white dark:bg-white text-black dark:text-black font-black text-[10px] uppercase tracking-widest border-l-[2px] border-black dark:border-black font-mono">
-                    Filter:_All
-                </button>
             </div>
 
-            {/* Leads Table */}
-            <div className="border-[2px] border-black dark:border-black overflow-hidden">
+            {/* Content Table */}
+            <div className="bg-white rounded-[32px] border border-neutral-100 shadow-premium overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-white dark:bg-white text-black dark:text-black border-b-2 border-black dark:border-black">
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest font-mono">01_Entity</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest font-mono">02_Protocol</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest font-mono">03_Sector</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest font-mono">04_Status</th>
-                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest font-mono text-right">Actions</th>
+                            <tr className="bg-neutral-50/50 text-neutral-900 text-[11px] font-black uppercase tracking-[0.2em] border-b border-neutral-100">
+                                <th className="px-10 py-6">Company</th>
+                                <th className="px-10 py-6">Contact Details</th>
+                                <th className="px-10 py-6">Status</th>
+                                <th className="px-10 py-6 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y-2 divide-neutral-100 dark:divide-neutral-100">
+                        <tbody className="divide-y divide-neutral-50">
                             {leads.map((lead) => (
-                                <tr key={lead.id} className="group hover:bg-neutral-50 dark:hover:bg-neutral-50 transition-colors">
-                                    <td className="px-6 py-8">
-                                        <div className="font-black text-sm uppercase text-black dark:text-black">{lead.name}</div>
-                                        <div className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight mt-1 font-mono">LOC: {lead.city}</div>
+                                <tr key={lead.id} className="group hover:bg-neutral-50 transition-colors">
+                                    <td className="px-10 py-8">
+                                        <div className="text-base font-black text-neutral-900 tracking-tight">{lead.name}</div>
+                                        <div className="text-[10px] text-neutral-500 font-black uppercase tracking-widest mt-1">{lead.city}</div>
                                     </td>
-                                    <td className="px-6 py-8">
-                                        <div className="space-y-1">
-                                            <div className="text-xs font-black uppercase text-black dark:text-black">{lead.owner}</div>
-                                            <div className="text-[10px] text-neutral-400 font-bold font-mono">{lead.email}</div>
+                                    <td className="px-10 py-8">
+                                        <div className="text-sm font-bold text-neutral-900">{lead.owner}</div>
+                                        <div className="text-xs text-neutral-500 font-medium mt-1">{lead.email}</div>
+                                    </td>
+                                    <td className="px-10 py-8">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2.5 h-2.5 rounded-full ${lead.status === 'Qualified' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500 shadow-sm shadow-amber-500/50'}`} />
+                                            <span className="text-xs font-black text-neutral-900 uppercase tracking-wider">{lead.status}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-8">
-                                        <div className="text-[10px] font-black uppercase text-neutral-500 font-mono">B2B_SECTOR</div>
-                                    </td>
-                                    <td className="px-6 py-8">
-                                        <span className={`px-2 py-1 text-[9px] font-black uppercase tracking-tighter font-mono ${lead.status === 'Qualified' ? 'bg-black text-white dark:bg-black dark:text-white' :
-                                            'border border-black dark:border-black text-black dark:text-black'
-                                            }`}>
-                                            {lead.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-8 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button className="p-2 border border-transparent hover:border-black dark:hover:border-black transition-all">
-                                                <ExternalLink className="w-4 h-4" />
-                                            </button>
-                                            <button className="p-2 border border-transparent hover:border-black dark:hover:border-black transition-all">
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                    <td className="px-10 py-8 text-right">
+                                        <button className="w-10 h-10 rounded-full bg-neutral-50 flex items-center justify-center text-neutral-400 hover:bg-black hover:text-white transition-all">
+                                            <ExternalLink className="w-4 h-4" />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

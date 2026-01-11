@@ -2,242 +2,147 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users, Target, TrendingUp, Sparkles, Trash2, Calendar, MapPin } from 'lucide-react';
-import { StatsCard, StatsCardSkeleton, HuntTable, HuntTableSkeleton } from '@/components';
-import type { Hunt } from '@/lib/types';
+import { Target, ChevronRight, Plus, CheckCircle2, Search } from 'lucide-react';
 import { api } from '@/lib/api';
+import type { Hunt } from '@/lib/types';
 
 export default function Dashboard() {
   const [hunts, setHunts] = useState<Hunt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalLeads: 0,
-    thisWeek: 0,
-    avgSuccess: 0,
-  });
+  const [activeTab, setActiveTab] = useState('Overview');
 
   useEffect(() => {
     async function fetchData() {
       try {
         const data = await api.getHunts();
         setHunts(data);
-
-        // Calculate stats
-        const total = data.reduce((acc: number, h: Hunt) => acc + (h.total_leads || 0), 0) || 0;
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const thisWeek = data.filter((h: Hunt) => new Date(h.created_at) > weekAgo)
-          .reduce((acc: number, h: Hunt) => acc + (h.total_leads || 0), 0) || 0;
-
-        setStats({
-          totalLeads: total,
-          thisWeek: thisWeek,
-          avgSuccess: 73, // Placeholder
-        });
       } catch (error) {
         console.error('Failed to fetch hunts:', error);
       } finally {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
-  const handleDeleteHunt = async (huntId: string) => {
-    try {
-      const response = await fetch(`/api/hunt/${huntId}`, { method: 'DELETE' });
-      if (response.ok) {
-        setHunts(hunts.filter(h => h.hunt_id !== huntId));
-      }
-    } catch (error) {
-      console.error('Failed to delete hunt:', error);
-    }
-  };
+  const tabs = ['Overview', 'Active_Runs', 'Lead_Feeds'];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-700">
-      {/* Dashboard Top Header */}
-      <div className="flex justify-between items-end">
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
+      {/* Simple Header */}
+      <div className="flex justify-between items-end pb-6 border-b border-neutral-100">
         <div>
-          <h1 className="text-[32px] font-bold text-neutral-900 tracking-tight leading-tight">
-            Dashboard
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">
+            Lead Generation
           </h1>
-          <p className="text-neutral-500 text-sm mt-1 font-medium">
-            Monitor your lead generation activity and campaign ROI in real-time.
+          <p className="text-xs text-neutral-400 mt-1 font-medium">
+            Monitor your search protocols and extraction performance.
           </p>
         </div>
         <Link href="/hunt/new">
-          <button className="bg-neutral-900 text-white px-8 py-4 rounded-full text-sm font-bold hover:bg-neutral-800 transition-all shadow-lg shadow-neutral-900/10 active:scale-95 flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Initiate new hunt
+          <button className="h-10 px-6 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all shadow-lg shadow-neutral-900/10 flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            New Hunt
           </button>
         </Link>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <>
-            <StatsCardSkeleton />
-            <StatsCardSkeleton />
-            <StatsCardSkeleton />
-          </>
-        ) : (
-          <>
-            <StatsCard
-              title="Pipeline Yield"
-              value={`${stats.totalLeads.toLocaleString()}`}
-              icon={TrendingUp}
-              trend="+28%"
-              trendUp={true}
-            />
-            <StatsCard
-              title="Qualified Leads"
-              value={stats.thisWeek.toLocaleString()}
-              icon={Target}
-              trend="+15%"
-              trendUp={true}
-            />
-            <StatsCard
-              title="Success Rate"
-              value="73.4%"
-              icon={Sparkles}
-              trend="+2.4%"
-              trendUp={true}
-            />
-          </>
-        )}
+      {/* Simplified Tabs */}
+      <div className="flex items-center gap-8 border-b border-neutral-100">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-4 text-xs font-bold transition-all relative ${activeTab === tab ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'}`}
+          >
+            {tab.replace('_', ' ')}
+            {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 rounded-full" />}
+          </button>
+        ))}
       </div>
 
-      {/* Active Campaign Hero - Styled like the reference image "Active Booking" */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-neutral-900">Active Hunting</h2>
-          <Link href="/campaigns" className="text-xs font-bold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-2">
-            Go to archive
-            <div className="w-5 h-5 rounded-full bg-neutral-100 flex items-center justify-center text-[8px]">→</div>
-          </Link>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-neutral-900 uppercase tracking-[0.2em]">Ongoing Protocols</h3>
+          </div>
 
-        <div className="bg-white rounded-[32px] border border-neutral-100 shadow-soft overflow-hidden">
-          <div className="p-10 flex flex-col lg:flex-row gap-12">
-            {/* Left: Campaign Visualization */}
-            <div className="lg:w-1/2 relative bg-neutral-50 rounded-[28px] p-8 flex items-center justify-center min-h-[340px]">
-              <div className="absolute top-6 left-6 bg-white px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 border border-neutral-100">
-                <Target className="w-4 h-4 text-neutral-900" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">SNIPE_CORE</span>
+          <div className="space-y-4">
+            {loading ? (
+              <div className="h-32 bg-white rounded-2xl border border-neutral-100 animate-pulse" />
+            ) : hunts.length === 0 ? (
+              <div className="p-16 text-center bg-white rounded-3xl border border-dashed border-neutral-200">
+                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">No Active Runs</p>
               </div>
-
-              {/* Abstract Visual (Simulating the car image) */}
-              <div className="flex items-end gap-3 h-48">
-                {[40, 70, 45, 90, 65, 85, 50].map((h, i) => (
-                  <div
-                    key={i}
-                    className="w-10 bg-neutral-900 rounded-xl"
-                    style={{ height: `${h}%`, opacity: 0.05 + (i * 0.1) }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Campaign Details */}
-            <div className="lg:w-1/2 flex flex-col justify-between py-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-1">B2B SaaS Outreach (High Priority)</h3>
-                  <div className="flex items-center gap-2 text-xs text-neutral-400 font-medium tracking-tight">
-                    <Calendar className="w-3 h-3" />
-                    <span>Started 03.02.22</span>
+            ) : (
+              hunts.slice(0, 3).map(hunt => (
+                <div key={hunt.hunt_id} className="bg-white rounded-3xl border border-neutral-100 p-8 flex items-center justify-between shadow-premium hover:scale-[1.01] transition-all group">
+                  <div className="flex items-center gap-5">
+                    <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center text-white shadow-xl shadow-black/10">
+                      <Target className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-black text-neutral-900 tracking-tight">{hunt.industry} in {hunt.location}</p>
+                      <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider mt-1">{hunt.total_leads || 0} leads discovered</p>
+                    </div>
                   </div>
+                  <Link href={`/hunt/${hunt.hunt_id}/results`} className="w-10 h-10 rounded-full bg-neutral-50 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+                    <ChevronRight className="w-5 h-5" />
+                  </Link>
                 </div>
-                <div className="text-right">
-                  <span className="text-4xl font-bold text-neutral-900">$1,250</span>
-                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-1">Estimated ROI</p>
+              ))
+            )}
+          </div>
+
+          <div className="pt-8">
+            <h3 className="text-sm font-black text-neutral-900 uppercase tracking-[0.2em] mb-6">Live Discovery Feed</h3>
+            <div className="bg-white rounded-[32px] border border-neutral-100 divide-y divide-neutral-50 shadow-premium overflow-hidden">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="p-6 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+                    <span className="text-sm font-bold text-neutral-900">New Lead Found (B2B SaaS)</span>
+                  </div>
+                  <span className="text-[10px] font-black text-neutral-400 uppercase">Just Now</span>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-2 gap-y-8 gap-x-12 mt-12">
-                <DetailRow label="Target Sector" value="Fintech / SaaS" />
-                <DetailRow label="Location" value="US, UK, Germany" />
-                <DetailRow label="Leads Found" value="1,240 / 5,000" />
-                <DetailRow label="Accuracy" value="98.4%" />
-              </div>
-
-              <div className="flex items-center gap-4 mt-12">
-                <button className="w-12 h-12 rounded-full border border-neutral-100 flex items-center justify-center text-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 transition-all">
-                  <Sparkles className="w-5 h-5" />
-                </button>
-                <button className="w-12 h-12 rounded-full border border-neutral-100 flex items-center justify-center text-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 transition-all">
-                  <TrendingUp className="w-5 h-5" />
-                </button>
-                <button className="w-12 h-12 rounded-full border border-neutral-100 flex items-center justify-center text-neutral-400 hover:bg-neutral-50 hover:text-rose-500 transition-all ml-auto">
-                  <Trash2 className="w-5 h-5" />
-                </button>
+        {/* Info Column */}
+        <div className="lg:col-span-1 space-y-8">
+          <div className="bg-black rounded-[40px] p-10 text-white shadow-2xl shadow-black/20">
+            <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-6">System Capacity</p>
+            <div className="space-y-8">
+              <div>
+                <div className="flex justify-between items-end mb-4">
+                  <p className="text-5xl font-black tracking-tighter tabular-nums">4,250</p>
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest pb-1">Credits</p>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="w-[85%] h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Bottom Stats Grid (Horizontal like the reference image) */}
-          <div className="bg-neutral-50/50 border-t border-neutral-100 grid grid-cols-2 md:grid-cols-4 divide-x divide-neutral-100">
-            <BottomStat label="Source" value="LinkedIn, Apollo" />
-            <BottomStat label="Extraction" value="Parallel_JS" />
-            <BottomStat label="Validation" value="Active_SMTP" />
-            <BottomStat label="Concurrency" value="50 Streams" />
-          </div>
-        </div>
-      </div>
-
-      {/* Activity Logs / Table */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-neutral-900 tracking-tight">
-              Operational History
-            </h2>
-            <p className="text-xs text-neutral-400 font-medium">
-              Check all previous scraping runs and exported datasets.
-            </p>
-          </div>
-        </div>
-
-        {hunts.length === 0 && !loading ? (
-          <div className="p-16 flex flex-col items-center justify-center text-center bg-white rounded-[32px] border border-neutral-100">
-            <div className="w-20 h-20 bg-neutral-50 rounded-2xl flex items-center justify-center mb-8">
-              <Target className="w-8 h-8 text-neutral-400" />
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-neutral-500 uppercase tracking-[0.2em]">Protocol Performance</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white p-6 rounded-[28px] border border-neutral-100 shadow-premium">
+                <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Avg Accuracy</p>
+                <p className="text-2xl font-black text-neutral-900 mt-2 tracking-tighter">98.4%</p>
+              </div>
+              <div className="bg-white p-6 rounded-[28px] border border-neutral-100 shadow-premium">
+                <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Parallelism</p>
+                <p className="text-2xl font-black text-neutral-900 mt-2 tracking-tighter">50x</p>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 tracking-tight mb-2">No active protocols</h3>
-            <p className="text-sm text-neutral-400 max-w-sm mx-auto mb-10 font-medium">
-              Start your first lead generation campaign to see data here.
-            </p>
-            <button className="bg-neutral-900 text-white px-10 py-4 rounded-full font-bold text-sm hover:bg-neutral-800 transition-all shadow-lg shadow-neutral-900/10 active:scale-95">
-              Initialize Sequence
-            </button>
           </div>
-        ) : loading ? (
-          <HuntTableSkeleton />
-        ) : (
-          <HuntTable hunts={hunts} onDelete={handleDeleteHunt} />
-        )}
+        </div>
       </div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1.5">{label}</p>
-      <p className="text-sm font-bold text-neutral-900">{value}</p>
-    </div>
-  );
-}
-
-function BottomStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="px-8 py-5">
-      <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-xs font-bold text-neutral-900">{value}</p>
     </div>
   );
 }

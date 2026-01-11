@@ -279,28 +279,62 @@ STATE_ABBREV = {
 
 
 def parse_location(location: str) -> tuple:
-    """Parse 'City, State' or 'City, ST' into (city, state_abbrev)."""
+    """Parse location flexibly: 'City, State', 'City, ST', 'State', or 'ST'."""
+    location = location.strip()
+
+    # Check if entire input is a 2-letter state abbreviation
+    if len(location) == 2 and location.upper() in STATE_ABBREV.values():
+        return "", location.upper()
+
+    # Check if entire input is a full state name (e.g., "New Jersey")
+    location_lower = location.lower()
+    if location_lower in STATE_ABBREV:
+        return "", STATE_ABBREV[location_lower]
+
+    # Check for "X area" pattern (e.g., "Phoenix area", "Los Angeles area")
+    if location_lower.endswith(" area"):
+        city = location[:-5].strip()  # Remove " area"
+        return city, ""
+
+    # Standard "City, State" format
     parts = location.split(",")
-    if len(parts) < 2:
-        words = location.strip().split()
-        if len(words) >= 2:
-            potential_state = words[-1].strip()
-            city = " ".join(words[:-1])
-            if len(potential_state) == 2:
-                return city, potential_state.upper()
-        raise ValueError(f"Invalid location format: {location}. Expected 'City, State'")
+    if len(parts) >= 2:
+        city = parts[0].strip()
+        state_raw = parts[1].strip().lower()
 
-    city = parts[0].strip()
-    state_raw = parts[1].strip().lower()
+        # 2-letter abbreviation
+        if len(state_raw) == 2:
+            return city, state_raw.upper()
 
-    if len(state_raw) == 2:
-        return city, state_raw.upper()
+        # Full state name
+        state = STATE_ABBREV.get(state_raw)
+        if state:
+            return city, state
 
-    state = STATE_ABBREV.get(state_raw)
-    if not state:
         raise ValueError(f"Unknown state: {state_raw}")
 
-    return city, state
+    # No comma - try "City ST" format (e.g., "Union NJ")
+    words = location.strip().split()
+    if len(words) >= 2:
+        potential_state = words[-1].strip()
+        city = " ".join(words[:-1])
+
+        # Check if last word is 2-letter abbreviation
+        if len(potential_state) == 2 and potential_state.upper() in STATE_ABBREV.values():
+            return city, potential_state.upper()
+
+        # Check if last 2 words form a state name (e.g., "New Jersey")
+        if len(words) >= 2:
+            potential_state_name = " ".join(words[-2:]).lower()
+            if potential_state_name in STATE_ABBREV:
+                city = " ".join(words[:-2]) if len(words) > 2 else ""
+                return city, STATE_ABBREV[potential_state_name]
+
+    # Single word that's not a state - use as city with empty state
+    if len(words) == 1:
+        return location, ""
+
+    raise ValueError(f"Invalid location format: {location}. Try 'City, State' or just 'State'")
 
 
 # ============================================================================

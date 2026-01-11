@@ -7,41 +7,38 @@
     --color-primary-light: #333333;
 
     --color-bg-base: #ffffff;
-    --color-bg-secondary: #f4f4f4;
-    /* Main background color from image */
+    --color-bg-secondary: #F5F6F8;
     --color-bg-sidebar: #1a1a1b;
-    /* Dark sidebar color from image */
     --color-bg-sidebar-active: #2a2a2b;
-    /* Active state in sidebar */
 
-    /* Text */
-    --color-text-primary: #1a1a1b;
-    --color-text-secondary: #666666;
-    --color-text-muted: #999999;
+    /* Text - High Contrast */
+    --color-text-primary: #000000;
+    --color-text-secondary: #525252;
+    --color-text-muted: #737373;
     --color-text-sidebar: #ffffff;
 
     /* Borders */
-    --color-border: #e5e5e5;
+    --color-border: #EBEBEB;
     --color-border-sidebar: #2a2a2b;
 
-    --radius-xl: 20px;
-    --radius-lg: 16px;
-    --radius-md: 12px;
-    --radius-sm: 8px;
+    --radius-xl: 16px;
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
 
-    --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.05);
-    --shadow-premium: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 * {
     box-sizing: border-box;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    letter-spacing: -0.01em;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.015em;
+    font-weight: 500;
 }
 
 body {
     background: var(--color-bg-secondary);
-    /* Light Gray bg for dashboard effect */
     color: var(--color-text-primary);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;

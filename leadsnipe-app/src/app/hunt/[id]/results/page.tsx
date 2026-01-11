@@ -308,40 +308,40 @@ export default function HuntResultsPage({ params }: PageProps) {
           </div>
         </motion.div>
 
-        {/* Bulk Actions */}
+        {/* Bulk Actions & Selection */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex items-center justify-between mb-6"
+          className="flex items-center justify-between mb-8 bg-black p-4 px-6 rounded-[24px] text-white shadow-2xl"
         >
           <button
             onClick={handleSelectAll}
-            className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="flex items-center gap-3 text-sm font-black uppercase tracking-widest transition-all"
           >
             <div className={`
-              w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+              w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
               ${selectedLeads.size === filteredLeads.length && filteredLeads.length > 0
-                ? 'bg-[var(--color-brand-purple)] border-[var(--color-brand-purple)]'
-                : 'border-[var(--color-border)]'
+                ? 'bg-white border-white'
+                : 'border-white/20 hover:border-white'
               }
             `}>
               {selectedLeads.size === filteredLeads.length && filteredLeads.length > 0 && (
-                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                <Check className="w-4 h-4 text-black" strokeWidth={4} />
               )}
             </div>
             <span>
               {selectedLeads.size === filteredLeads.length && filteredLeads.length > 0
-                ? 'Deselect All'
-                : 'Select All'
+                ? 'Deselect All Leads'
+                : 'Select All Leads'
               }
             </span>
           </button>
 
-          <div className="text-sm text-[var(--color-text-muted)]">
-            Showing {filteredLeads.length} of {leads.length} leads
+          <div className="text-xs font-black uppercase tracking-widest text-white/40">
+            Showing {filteredLeads.length} of {leads.length}
             {selectedLeads.size > 0 && (
-              <span className="ml-2 text-[var(--color-brand-purple)]">
+              <span className="ml-3 text-white">
                 ({selectedLeads.size} selected)
               </span>
             )}

@@ -45,130 +45,128 @@ export function LeadCard({ lead, isSelected, onSelect, delay = 0 }: LeadCardProp
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: 'easeOut' }}
       className={`
-        group relative bg-white dark:bg-white border-2 overflow-hidden transition-all duration-300
+        group relative bg-white border border-neutral-100 rounded-[28px] overflow-hidden transition-all duration-300
         ${isSelected
-          ? 'border-black dark:border-black shadow-none ring-2 ring-black ring-offset-2'
-          : 'border-neutral-200 dark:border-neutral-200 hover:border-black dark:hover:border-black'
+          ? 'ring-2 ring-neutral-900 border-transparent shadow-xl'
+          : 'shadow-soft hover:shadow-premium hover:border-neutral-200'
         }
       `}
     >
       {/* Selection checkbox */}
       {onSelect && (
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+        <button
           onClick={() => onSelect(lead.id)}
           className={`
-            absolute top-4 right-4 w-6 h-6 border-2 flex items-center justify-center transition-all
+            absolute top-6 right-6 w-5 h-5 rounded-full border transition-all flex items-center justify-center z-10
             ${isSelected
-              ? 'bg-black dark:bg-black border-black dark:border-black'
-              : 'bg-white dark:bg-white border-black dark:border-black hover:bg-neutral-50'
+              ? 'bg-neutral-900 border-neutral-900'
+              : 'bg-white border-neutral-200 hover:border-neutral-900'
             }
           `}
         >
-          {isSelected && <Check className="w-4 h-4 text-white dark:text-white" strokeWidth={3} />}
-        </motion.button>
+          {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={4} />}
+        </button>
       )}
 
-      <div className="p-5">
+      <div className="p-6">
         {/* Business Header */}
-        <div className="flex items-start gap-4 mb-4">
-          {/* Company icon */}
-          <div className="flex-shrink-0 w-12 h-12 bg-white dark:bg-white border-2 border-black dark:border-black flex items-center justify-center group-hover:translate-x-[2px] group-hover:translate-y-[2px] transition-transform">
-            <Building2 className="w-6 h-6 text-black dark:text-black" />
+        <div className="flex items-start gap-5 mb-6">
+          <div className="flex-shrink-0 w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg shadow-black/5">
+            <Building2 className="w-6 h-6 text-white" />
           </div>
 
           <div className="flex-1 min-w-0 pr-8">
-            <h3 className="text-lg font-black uppercase tracking-tighter text-black dark:text-black truncate font-mono">
+            <h3 className="text-base font-black text-neutral-900 truncate tracking-tight">
               {lead.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-1.5 mt-1">
               <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 truncate font-mono">
+              <span className="text-[11px] font-bold text-neutral-500 truncate">
                 {lead.address}
               </span>
             </div>
 
             {/* Rating */}
             {lead.rating > 0 && (
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 text-black dark:text-black fill-current" />
-                  <span className="text-xs font-black text-black dark:text-black font-mono">
+              <div className="flex items-center gap-3 mt-2.5">
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded-lg">
+                  <Star className="w-3 h-3 text-amber-500 fill-current" />
+                  <span className="text-[10px] font-black text-amber-900">
                     {lead.rating.toFixed(1)}
                   </span>
                 </div>
-                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest font-mono">
-                  {lead.user_ratings_total}_REVIEWS
+                <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">
+                  {lead.user_ratings_total} Reviews
                 </span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        {/* Tags - Cleaner Badges */}
+        <div className="flex flex-wrap gap-2 mb-6">
           {hasCeoEmail && (
-            <span className="px-2 py-1 text-[9px] uppercase font-black bg-black text-white dark:bg-black dark:text-white flex items-center gap-1 font-mono">
-              <Check className="w-3 h-3" /> CEO_EMAIL
+            <span className="px-3 py-1 text-[10px] font-black bg-emerald-50 text-emerald-700 rounded-full flex items-center gap-1.5 uppercase tracking-wider shadow-sm">
+              <div className="w-1 h-1 bg-emerald-500 rounded-full" /> CEO Email
             </span>
           )}
           {hasLinkedIn && (
-            <span className="px-2 py-1 text-[9px] uppercase font-black border-2 border-black dark:border-black text-black dark:text-black flex items-center gap-1 font-mono">
-              <Linkedin className="w-3 h-3" /> LINKEDIN
+            <span className="px-3 py-1 text-[10px] font-black bg-blue-50 text-blue-700 rounded-full flex items-center gap-1.5 uppercase tracking-wider shadow-sm">
+              <div className="w-1 h-1 bg-blue-500 rounded-full" /> LinkedIn
             </span>
           )}
           {!hasCeoEmail && lead.email && (
-            <span className="px-2 py-1 text-[9px] uppercase font-black bg-neutral-100 dark:bg-neutral-100 text-neutral-600 dark:text-neutral-600 font-mono">
-              BUSINESS_MAIL
+            <span className="px-3 py-1 text-[10px] font-black bg-neutral-100 text-neutral-500 rounded-full uppercase tracking-wider">
+              Generic Mail
             </span>
           )}
         </div>
 
-        {/* Decision Maker Section */}
+        {/* Decision Maker Section - Simplified */}
         {lead.decision_maker && (
-          <div className="bg-neutral-50 dark:bg-neutral-50 p-4 border-2 border-black dark:border-black mb-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-black dark:bg-black flex items-center justify-center">
-                <User className="w-5 h-5 text-white dark:text-white" />
+          <div className="bg-neutral-50 rounded-2xl p-5 mb-4 border border-neutral-100 group-hover:bg-neutral-900 transition-colors group/dm">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover/dm:bg-white/10">
+                <User className="w-5 h-5 text-neutral-400 group-hover/dm:text-white" />
               </div>
               <div>
-                <p className="font-black uppercase text-xs tracking-tighter text-black dark:text-black font-mono">
+                <p className="font-black text-sm text-neutral-900 group-hover/dm:text-white transition-colors">
                   {lead.decision_maker.full_name || 'Unknown'}
                 </p>
-                <p className="text-[9px] text-neutral-500 uppercase font-black tracking-widest font-mono">
+                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest group-hover/dm:text-white/50">
                   {lead.decision_maker.job_title || 'Decision Maker'}
                 </p>
               </div>
             </div>
 
-            {/* Contact Info */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {lead.decision_maker.email && (
                 <ContactRow
                   icon={Mail}
                   value={lead.decision_maker.email}
                   onCopy={() => handleCopy(lead.decision_maker!.email, 'email')}
                   isCopied={copiedField === 'email'}
+                  inverse={true}
                 />
               )}
               {lead.decision_maker.linkedin_url && (
                 <ContactRow
                   icon={Linkedin}
-                  value={lead.decision_maker.linkedin_url.replace('https://linkedin.com/in/', '')}
+                  value="View Profile"
                   href={lead.decision_maker.linkedin_url}
+                  inverse={true}
                 />
               )}
             </div>
           </div>
         )}
 
-        {/* Expand/Collapse Button */}
+        {/* Expand/Collapse */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-black dark:hover:text-black transition-colors font-mono"
+          className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 hover:text-neutral-900 transition-all border-t border-neutral-50 mt-2"
         >
-          <span>{isExpanded ? 'LESS_ENTITY_INTEL' : 'VIEW_ENTITY_INTEL'}</span>
+          <span>{isExpanded ? 'Collapse Intel' : 'Show Entity Intel'}</span>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
@@ -187,7 +185,7 @@ export function LeadCard({ lead, isSelected, onSelect, delay = 0 }: LeadCardProp
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="pt-4 border-t-2 border-neutral-100 dark:border-neutral-100 space-y-3">
+              <div className="pt-4 space-y-3">
                 {lead.phone && (
                   <ContactRow
                     icon={Phone}
@@ -201,15 +199,6 @@ export function LeadCard({ lead, isSelected, onSelect, delay = 0 }: LeadCardProp
                     icon={Globe}
                     value={extractDomain(lead.website)}
                     href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                  />
-                )}
-                {lead.email && lead.email !== lead.decision_maker?.email && (
-                  <ContactRow
-                    icon={Mail}
-                    value={lead.email}
-                    label="Business"
-                    onCopy={() => handleCopy(lead.email, 'businessEmail')}
-                    isCopied={copiedField === 'businessEmail'}
                   />
                 )}
               </div>
@@ -228,40 +217,36 @@ interface ContactRowProps {
   href?: string;
   onCopy?: () => void;
   isCopied?: boolean;
+  inverse?: boolean;
 }
 
-function ContactRow({ icon: Icon, value, label, href, onCopy, isCopied }: ContactRowProps) {
+function ContactRow({ icon: Icon, value, label, href, onCopy, isCopied, inverse }: ContactRowProps) {
   return (
-    <div className="flex items-center justify-between gap-2 group/row">
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <Icon className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-        {label && (
-          <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 flex-shrink-0 font-mono">{label}:</span>
-        )}
-        <span className="text-[10px] font-bold text-neutral-600 uppercase tracking-tight truncate font-mono">{value}</span>
+    <div className={`flex items-center justify-between gap-2 group/row p-2 rounded-xl transition-colors ${inverse ? 'hover:bg-white/10' : 'hover:bg-neutral-50'}`}>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <Icon className={`w-4 h-4 flex-shrink-0 ${inverse ? 'text-white/40' : 'text-neutral-400'}`} />
+        <span className={`text-[11px] font-bold truncate ${inverse ? 'text-white/80' : 'text-neutral-600'}`}>{value}</span>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+      <div className="flex items-center gap-2">
         {onCopy && (
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+          <button
             onClick={onCopy}
-            className="p-1.5 border-2 border-transparent hover:border-black dark:hover:border-black text-neutral-400 hover:text-black dark:hover:text-black transition-colors"
+            className={`p-1.5 rounded-lg transition-all ${inverse ? 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20' : 'bg-neutral-100 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200'}`}
           >
             {isCopied ? (
-              <Check className="w-3.5 h-3.5 text-black dark:text-black" />
+              <Check className="w-3.5 h-3.5" />
             ) : (
               <Copy className="w-3.5 h-3.5" />
             )}
-          </motion.button>
+          </button>
         )}
         {href && (
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 border-2 border-transparent hover:border-black dark:hover:border-black text-neutral-400 hover:text-black dark:hover:text-black transition-colors"
+            className={`p-1.5 rounded-lg transition-all ${inverse ? 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20' : 'bg-neutral-100 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200'}`}
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
@@ -271,33 +256,18 @@ function ContactRow({ icon: Icon, value, label, href, onCopy, isCopied }: Contac
   );
 }
 
-// Skeleton version
 export function LeadCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-white border-2 border-neutral-100 dark:border-neutral-100 p-5 space-y-4">
-      <div className="flex items-start gap-4 mb-4">
-        <div className="w-12 h-12 bg-neutral-50 dark:bg-neutral-50 border-2 border-neutral-100 dark:border-neutral-100" />
+    <div className="bg-white border border-neutral-100 rounded-[28px] p-6 space-y-6 shadow-soft">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 bg-neutral-50 rounded-2xl animate-pulse" />
         <div className="flex-1 space-y-2">
-          <div className="h-5 w-48 bg-neutral-100 dark:bg-neutral-100" />
-          <div className="h-4 w-64 bg-neutral-50 dark:bg-neutral-50" />
-          <div className="h-4 w-24 bg-neutral-50 dark:bg-neutral-50" />
+          <div className="h-5 w-48 bg-neutral-100 rounded-lg animate-pulse" />
+          <div className="h-4 w-32 bg-neutral-50 rounded-lg animate-pulse" />
         </div>
       </div>
-      <div className="flex gap-2 mb-4">
-        <div className="h-6 w-24 bg-neutral-100 dark:bg-neutral-100" />
-        <div className="h-6 w-20 bg-neutral-100 dark:bg-neutral-100" />
-      </div>
-      <div className="bg-neutral-50 dark:bg-neutral-50 border-2 border-neutral-100 dark:border-neutral-100 p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-100" />
-          <div className="space-y-1.5">
-            <div className="h-4 w-32 bg-neutral-100 dark:bg-neutral-100" />
-            <div className="h-3 w-20 bg-neutral-100 dark:bg-neutral-100" />
-          </div>
-        </div>
-        <div className="h-4 w-full bg-neutral-100 dark:bg-neutral-100" />
-        <div className="h-4 w-3/4 bg-neutral-100 dark:bg-neutral-100" />
-      </div>
+      <div className="h-24 bg-neutral-50 rounded-2xl animate-pulse" />
+      <div className="h-10 bg-neutral-50 rounded-xl animate-pulse" />
     </div>
   );
 }

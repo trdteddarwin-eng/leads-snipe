@@ -111,6 +111,14 @@ export const api = {
         else if (status.status === 'completed') frontendStatus = 'completed';
         else if (status.status === 'failed') frontendStatus = 'failed';
 
+        // Map backend status to frontend stage number
+        const stageMap: Record<string, 1 | 2 | 3> = {
+            'queued': 1, 'scraping': 1,
+            'finding_owners': 2,
+            'getting_emails': 3, 'generating_outreach': 3,
+            'completed': 3, 'failed': 1
+        };
+
         return {
             hunt_id: status.hunt_id,
             industry: status.niche || 'Unknown',
@@ -126,7 +134,7 @@ export const api = {
                 linkedin_found: status.emails_found,
             },
             progress: {
-                stage: 1, // simplified
+                stage: stageMap[status.status] || 1,
                 stage_name: status.stage_message,
                 percentage: status.progress_percent,
                 processed: status.leads_found,

@@ -62,6 +62,7 @@ export interface HuntDetails extends Hunt {
   stats?: HuntStats;
   performance?: HuntPerformance;
   leads?: Lead[];
+  error?: string;
 }
 
 export interface ActivityEvent {
