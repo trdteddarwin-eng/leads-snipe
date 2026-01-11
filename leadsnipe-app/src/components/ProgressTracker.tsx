@@ -33,16 +33,16 @@ export function ProgressTracker({ progress, stageTimes }: ProgressTrackerProps) 
           </span>
         </div>
 
-        <div className="progress-bar h-3">
+        <div className="progress-bar h-3 bg-neutral-100 dark:bg-neutral-100 border-2 border-black dark:border-black rounded-none overflow-hidden">
           <motion.div
-            className="progress-bar-fill"
+            className="h-full bg-black dark:bg-black"
             initial={{ width: 0 }}
             animate={{ width: `${progress.percentage}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+        <div className="flex items-center justify-between text-xs text-neutral-400 font-bold uppercase tracking-tight">
           <span>{progress.processed} / {progress.total} leads processed</span>
           <span>~{formatDuration(progress.estimated_total - progress.elapsed_time)} remaining</span>
         </div>
@@ -62,12 +62,12 @@ export function ProgressTracker({ progress, stageTimes }: ProgressTrackerProps) 
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: stage.id * 0.1 }}
               className={`
-                relative p-4 rounded-xl border transition-all duration-300
+                relative p-4 border-2 transition-all duration-300 rounded-none shadow-none
                 ${stageStatus === 'active'
-                  ? 'bg-[var(--color-brand-purple)]/10 border-[var(--color-brand-purple)]/50'
+                  ? 'bg-neutral-50 dark:bg-neutral-50 border-black dark:border-black'
                   : stageStatus === 'completed'
-                    ? 'bg-[var(--color-success)]/5 border-[var(--color-success)]/30'
-                    : 'bg-[var(--color-surface)] border-[var(--color-border)]'
+                    ? 'bg-neutral-100 dark:bg-neutral-100 border-black dark:border-black'
+                    : 'bg-white dark:bg-white border-neutral-200 dark:border-neutral-200 opacity-60'
                 }
               `}
             >
@@ -75,10 +75,10 @@ export function ProgressTracker({ progress, stageTimes }: ProgressTrackerProps) 
               {stage.id < 3 && (
                 <div
                   className={`
-                    absolute left-7 top-full w-0.5 h-3 -translate-x-1/2
+                    absolute left-7 top-full w-[2px] h-3 -translate-x-1/2
                     ${stageStatus === 'completed'
-                      ? 'bg-[var(--color-success)]'
-                      : 'bg-[var(--color-border)]'
+                      ? 'bg-black dark:bg-black'
+                      : 'bg-neutral-200 dark:bg-neutral-200'
                     }
                   `}
                 />
@@ -88,12 +88,12 @@ export function ProgressTracker({ progress, stageTimes }: ProgressTrackerProps) 
                 {/* Status Icon */}
                 <div
                   className={`
-                    flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
+                    flex-shrink-0 w-10 h-10 border-2 flex items-center justify-center
                     ${stageStatus === 'completed'
-                      ? 'bg-[var(--color-success)] text-white'
+                      ? 'bg-black text-white dark:bg-black dark:text-white border-black dark:border-black'
                       : stageStatus === 'active'
-                        ? 'bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] text-white'
-                        : 'bg-[var(--color-elevated)] text-[var(--color-text-muted)]'
+                        ? 'bg-black text-white dark:bg-black dark:text-white border-black dark:border-black'
+                        : 'bg-neutral-100 dark:bg-neutral-100 text-neutral-400 border-neutral-200 dark:border-neutral-200'
                     }
                   `}
                 >
@@ -116,48 +116,48 @@ export function ProgressTracker({ progress, stageTimes }: ProgressTrackerProps) 
                   <div className="flex items-center justify-between">
                     <h4
                       className={`
-                        font-semibold
+                        font-black uppercase text-[10px] tracking-widest font-mono
                         ${stageStatus === 'pending'
-                          ? 'text-[var(--color-text-muted)]'
-                          : 'text-[var(--color-text-primary)]'
+                          ? 'text-neutral-400'
+                          : 'text-black dark:text-black'
                         }
                       `}
                     >
-                      Stage {stage.id}: {stage.name}
+                      0{stage.id}_{stage.name}
                     </h4>
 
                     {/* Stage Status Badge */}
                     <span
                       className={`
-                        text-xs font-semibold px-2 py-0.5 rounded-full
+                        text-[9px] uppercase font-black px-2 py-0.5 font-mono
                         ${stageStatus === 'completed'
-                          ? 'bg-[var(--color-success)]/20 text-[var(--color-success)]'
+                          ? 'bg-neutral-200 dark:bg-neutral-200 text-black dark:text-black'
                           : stageStatus === 'active'
-                            ? 'bg-[var(--color-brand-purple)]/20 text-[var(--color-brand-purple)]'
-                            : 'bg-[var(--color-elevated)] text-[var(--color-text-muted)]'
+                            ? 'bg-black text-white dark:bg-black dark:text-white'
+                            : 'bg-neutral-100 dark:bg-neutral-100 text-neutral-400'
                         }
                       `}
                     >
-                      {stageStatus === 'completed' ? 'Complete' : stageStatus === 'active' ? 'In Progress' : 'Pending'}
+                      {stageStatus === 'completed' ? 'Complete' : stageStatus === 'active' ? 'Scanning' : 'Waiting'}
                     </span>
                   </div>
 
-                  <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-tight mt-1 font-mono">
                     {stage.description}
                   </p>
 
                   {/* Stage metrics */}
                   {(stageStatus === 'completed' || stageStatus === 'active') && (
-                    <div className="flex items-center gap-4 mt-2 text-xs">
+                    <div className="flex items-center gap-4 mt-2 text-[10px]">
                       {stageTime !== undefined && (
-                        <span className="text-[var(--color-text-secondary)]">
+                        <span className="text-neutral-400 font-mono font-black">
                           <Icon className="w-3 h-3 inline mr-1" />
                           {formatDuration(stageTime)}
                         </span>
                       )}
                       {stageStatus === 'active' && progress.stage === stage.id && (
-                        <span className="text-[var(--color-brand-purple)]">
-                          Processing lead {progress.processed + 1} of {progress.total}...
+                        <span className="font-black text-black dark:text-black animate-pulse font-mono">
+                          PROCESSING_{progress.processed + 1}/{progress.total}
                         </span>
                       )}
                     </div>

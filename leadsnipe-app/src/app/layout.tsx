@@ -47,17 +47,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${sora.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-[var(--color-bg-base)] antialiased">
+      <body className="min-h-screen bg-[var(--color-bg-secondary)] antialiased">
         {/* Sidebar */}
         <Sidebar />
 
         {/* Main content area */}
-        <div className="ml-64">
+        <div className="pl-64 flex flex-col min-h-screen">
           {/* Header */}
           <Header />
 
           {/* Main content */}
-          <main className="p-8">
+          <main className="flex-1 p-12 pt-0">
             {children}
           </main>
         </div>

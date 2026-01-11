@@ -23,6 +23,10 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+import { api } from '@/lib/api';
+
+// ... (other imports)
+
 export default function HuntProgressPage({ params }: PageProps) {
   const { id: huntId } = use(params);
   const router = useRouter();
@@ -30,7 +34,7 @@ export default function HuntProgressPage({ params }: PageProps) {
   const [huntDetails, setHuntDetails] = useState<HuntDetails | null>(null);
   const [progress, setProgress] = useState<HuntProgress>({
     stage: 1,
-    stage_name: 'Google Maps Scraping',
+    stage_name: 'Initializing...',
     percentage: 0,
     processed: 0,
     total: 0,
@@ -39,11 +43,7 @@ export default function HuntProgressPage({ params }: PageProps) {
   });
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [status, setStatus] = useState<'running' | 'completed' | 'failed'>('running');
-  const [stageTimes, setStageTimes] = useState<{
-    stage1?: number;
-    stage2?: number;
-    stage3?: number;
-  }>({});
+  const [stageTimes, setStageTimes] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Add event helper
@@ -56,62 +56,55 @@ export default function HuntProgressPage({ params }: PageProps) {
     }]);
   }, []);
 
-  // Fetch hunt details
+  // Poll for hunt status/progress
   useEffect(() => {
-    async function fetchHuntDetails() {
+    let interval: NodeJS.Timeout;
+
+    async function checkStatus() {
       try {
-        const response = await fetch(`/api/hunt/${huntId}/status`);
-        if (response.ok) {
-          const data = await response.json();
-          setHuntDetails(data);
+        const data = await api.getHuntDetails(huntId);
+        setHuntDetails(data);
+        if (data.progress) setProgress(data.progress);
 
-          if (data.progress) {
-            setProgress(data.progress);
-          }
-
-          if (data.status === 'completed') {
-            setStatus('completed');
-          } else if (data.status === 'failed') {
-            setStatus('failed');
-            setError(data.error || 'Hunt failed');
-          }
+        if (data.status === 'completed') {
+          setStatus('completed');
+          clearInterval(interval);
+        } else if (data.status === 'failed') {
+          setStatus('failed');
+          // setError(data.error); // HuntDetails type doesn't have error field yet?
+          clearInterval(interval);
         }
       } catch (err) {
-        console.error('Failed to fetch hunt details:', err);
+        console.error('Polling error:', err);
       }
     }
 
-    fetchHuntDetails();
-  }, [huntId]);
+    checkStatus(); // Initial check
+    if (status === 'running') {
+      interval = setInterval(checkStatus, 2000);
+    }
 
-  // SSE for real-time updates
+    return () => clearInterval(interval);
+  }, [huntId, status]);
+
+  // SSE for real-time logs
   useEffect(() => {
     if (status !== 'running') return;
 
-    const eventSource = new EventSource(`/api/hunt/${huntId}/stream`);
+    // Connect to backend stream
+    const eventSource = new EventSource(`http://127.0.0.1:8000/api/hunt/${huntId}/logs`);
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === 'progress') {
-          setProgress(data.progress);
-
-          // Update stage times
-          if (data.stage_times) {
-            setStageTimes(data.stage_times);
-          }
-        } else if (data.type === 'event') {
-          addEvent(data.event_type || 'info', data.message);
-        } else if (data.type === 'completed') {
-          setStatus('completed');
-          addEvent('success', 'Hunt completed successfully!');
+        // Backend sends: { id, timestamp, level, message } OR { type: 'complete', ... }
+        if (data.type === 'complete') {
+          // Polling handles completion, but we can close stream here
           eventSource.close();
-        } else if (data.type === 'failed') {
-          setStatus('failed');
-          setError(data.error || 'Hunt failed');
-          addEvent('error', data.error || 'Hunt failed');
-          eventSource.close();
+        } else if (data.message) {
+          const type = data.level === 'ERROR' ? 'error' : data.level === 'WARN' ? 'warning' : 'info';
+          addEvent(type, data.message);
         }
       } catch (err) {
         console.error('Failed to parse SSE data:', err);
@@ -119,85 +112,14 @@ export default function HuntProgressPage({ params }: PageProps) {
     };
 
     eventSource.onerror = () => {
-      console.error('SSE connection error');
-      // Don't close immediately, let it retry
+      // console.error('SSE connection error');
+      // eventSource.close();
     };
 
     return () => {
       eventSource.close();
     };
   }, [huntId, status, addEvent]);
-
-  // Simulate progress for demo if no real backend
-  useEffect(() => {
-    if (!huntDetails) return;
-    if (status !== 'running') return;
-
-    // Add initial events
-    addEvent('info', `Starting hunt for ${huntDetails.industry} in ${huntDetails.location}`);
-    addEvent('info', `Target: ${huntDetails.target} leads`);
-
-    // Simulate progress
-    const stages = [
-      { stage: 1, name: 'Google Maps Scraping', duration: 3000, messages: ['Generating search queries...', 'Scraping Google Maps...', 'Found businesses'] },
-      { stage: 2, name: 'Decision Maker Finding', duration: 5000, messages: ['Finding CEO emails...', 'Processing domains...', 'Validating emails'] },
-      { stage: 3, name: 'LinkedIn Discovery', duration: 2000, messages: ['Searching LinkedIn profiles...', 'Parsing websites...', 'Completing search'] },
-    ];
-
-    let currentStage = 0;
-    let stageProgress = 0;
-    let totalElapsed = 0;
-
-    const interval = setInterval(() => {
-      if (currentStage >= stages.length) {
-        setStatus('completed');
-        addEvent('success', 'Hunt completed successfully!');
-        clearInterval(interval);
-        return;
-      }
-
-      const stage = stages[currentStage];
-      stageProgress += 10;
-      totalElapsed += 500;
-
-      // Random events
-      if (Math.random() > 0.7) {
-        const msgIndex = Math.floor(Math.random() * stage.messages.length);
-        addEvent('info', stage.messages[msgIndex]);
-      }
-
-      if (Math.random() > 0.85) {
-        addEvent('success', `Found CEO: ${['John Smith', 'Jane Doe', 'Mike Johnson', 'Sarah Williams'][Math.floor(Math.random() * 4)]}`);
-      }
-
-      const overallProgress = Math.min(
-        Math.round(((currentStage * 100) + stageProgress) / 3),
-        100
-      );
-
-      setProgress({
-        stage: (currentStage + 1) as 1 | 2 | 3,
-        stage_name: stage.name,
-        percentage: overallProgress,
-        processed: Math.round((overallProgress / 100) * (huntDetails.target || 25)),
-        total: huntDetails.target || 25,
-        elapsed_time: totalElapsed / 1000,
-        estimated_total: 120,
-      });
-
-      if (stageProgress >= 100) {
-        setStageTimes(prev => ({
-          ...prev,
-          [`stage${currentStage + 1}`]: totalElapsed / 1000,
-        }));
-        addEvent('success', `Stage ${currentStage + 1} completed`);
-        currentStage++;
-        stageProgress = 0;
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [huntDetails, status, addEvent]);
 
   return (
     <div className="min-h-screen py-12 px-6">
@@ -227,22 +149,22 @@ export default function HuntProgressPage({ params }: PageProps) {
             <div className={`
               w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg
               ${status === 'running'
-                ? 'bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] shadow-[var(--color-brand-purple)]/20 animate-pulse-glow'
+                ? 'bg-black dark:bg-white'
                 : status === 'completed'
-                  ? 'bg-[var(--color-success)]'
-                  : 'bg-[var(--color-error)]'
+                  ? 'bg-neutral-100 dark:bg-neutral-800'
+                  : 'border-2 border-black dark:border-white'
               }
             `}>
               {status === 'running' ? (
-                <Target className="w-7 h-7 text-white" />
+                <Target className="w-7 h-7 text-white dark:text-black" />
               ) : status === 'completed' ? (
-                <CheckCircle2 className="w-7 h-7 text-white" />
+                <CheckCircle2 className="w-7 h-7 text-black dark:text-white" />
               ) : (
-                <XCircle className="w-7 h-7 text-white" />
+                <XCircle className="w-7 h-7 text-black dark:text-white" />
               )}
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--color-text-primary)]">
+              <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-black dark:text-white">
                 {status === 'running'
                   ? 'Lead Hunt in Progress'
                   : status === 'completed'
@@ -251,7 +173,7 @@ export default function HuntProgressPage({ params }: PageProps) {
                 }
               </h1>
               {huntDetails && (
-                <div className="flex items-center gap-4 text-sm text-[var(--color-text-muted)] mt-1">
+                <div className="flex items-center gap-4 text-sm text-neutral-500 font-medium mt-1">
                   <span className="flex items-center gap-1">
                     <Target className="w-3.5 h-3.5" />
                     {huntDetails.industry}
@@ -277,13 +199,13 @@ export default function HuntProgressPage({ params }: PageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6"
+            className="bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-semibold text-[var(--color-text-primary)]">
+              <h2 className="font-bold text-black dark:text-white uppercase tracking-tight">
                 Progress
               </h2>
-              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+              <div className="flex items-center gap-2 text-sm text-neutral-500 font-bold">
                 <Clock className="w-4 h-4" />
                 <span>{formatDuration(progress.elapsed_time)}</span>
               </div>
@@ -296,13 +218,13 @@ export default function HuntProgressPage({ params }: PageProps) {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-6 pt-6 border-t border-[var(--color-border)]"
+                className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800"
               >
                 <Link href={`/hunt/${huntId}/results`}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] rounded-xl font-semibold text-white shadow-lg shadow-[var(--color-brand-purple)]/25"
+                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-black dark:bg-white rounded-xl font-bold text-white dark:text-black shadow-lg"
                   >
                     <span>View Results</span>
                     <ArrowRight className="w-5 h-5" />

@@ -5,53 +5,59 @@ import { LucideIcon } from 'lucide-react';
 interface StatsCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
-  iconBgColor?: string;
-  iconColor?: string;
+  icon?: LucideIcon;
+  variant?: 'blue' | 'pink' | 'white' | 'purple';
+  trend?: string;
+  trendUp?: boolean;
 }
 
 export function StatsCard({
   title,
   value,
   icon: Icon,
+  variant = 'white',
   trend,
-  iconBgColor = 'bg-blue-50',
-  iconColor = 'text-blue-600',
+  trendUp
 }: StatsCardProps) {
+
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'white':
+        return 'bg-white dark:bg-white text-black dark:text-black border-2 border-black dark:border-black';
+      default:
+        // Use a very light gray or subtle border for variants in B&W mode
+        return 'bg-white dark:bg-white text-black dark:text-black border-2 border-black dark:border-black shadow-sm';
+    }
+  };
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-[var(--color-border)] p-6 hover:shadow-md transition-shadow">
-      {/* Header with Icon and Trend */}
-      <div className="flex items-center justify-between mb-4">
-        {/* Icon */}
-        <div className={`w-12 h-12 rounded-full ${iconBgColor} flex items-center justify-center`}>
-          <Icon className={`w-6 h-6 ${iconColor}`} strokeWidth={2} />
+    <div className="p-8 bg-white rounded-[24px] border border-neutral-100 shadow-soft group hover:shadow-premium transition-all duration-500">
+      <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-neutral-400">
+            {title}
+          </span>
+          <h3 className="text-3xl font-bold tracking-tight text-neutral-900">{value}</h3>
         </div>
 
-        {/* Trend Badge */}
-        {trend && (
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-            trend.isPositive
-              ? 'bg-green-100 text-green-700'
-              : 'bg-red-100 text-red-700'
-          }`}>
-            {trend.isPositive ? '+' : ''}{trend.value}%
-          </span>
+        {Icon && (
+          <div className="w-12 h-12 rounded-2xl bg-neutral-50 flex items-center justify-center group-hover:bg-neutral-900/5 transition-colors">
+            <Icon className="w-5 h-5 text-neutral-900" />
+          </div>
         )}
       </div>
 
-      {/* Value */}
-      <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-1">
-        {value}
-      </div>
-
-      {/* Title */}
-      <div className="text-sm text-[var(--color-text-secondary)] font-medium">
-        {title}
-      </div>
+      {trend && (
+        <div className="flex items-center gap-2">
+          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${trendUp
+            ? 'bg-emerald-50 text-emerald-600'
+            : 'bg-neutral-50 text-neutral-500'
+            }`}>
+            {trend}
+          </div>
+          <span className="text-[10px] text-neutral-400 font-medium tracking-tight">vs last month</span>
+        </div>
+      )}
     </div>
   );
 }

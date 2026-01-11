@@ -28,6 +28,10 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+import { api } from '@/lib/api';
+
+// ... (other imports)
+
 export default function HuntResultsPage({ params }: PageProps) {
   const { id: huntId } = use(params);
 
@@ -47,13 +51,10 @@ export default function HuntResultsPage({ params }: PageProps) {
   useEffect(() => {
     async function fetchResults() {
       try {
-        const response = await fetch(`/api/hunt/${huntId}/results`);
-        if (response.ok) {
-          const data = await response.json();
-          setHuntDetails(data);
-          setLeads(data.leads || []);
-          setFilteredLeads(data.leads || []);
-        }
+        const data = await api.getHuntDetails(huntId);
+        setHuntDetails(data);
+        setLeads(data.leads || []);
+        setFilteredLeads(data.leads || []);
       } catch (err) {
         console.error('Failed to fetch results:', err);
       } finally {
@@ -189,12 +190,12 @@ export default function HuntResultsPage({ params }: PageProps) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] rounded-xl font-medium text-white shadow-lg shadow-[var(--color-brand-purple)]/20"
+                className="flex items-center gap-2 px-5 py-2.5 bg-black dark:bg-white rounded-xl font-bold text-white dark:text-black shadow-lg"
               >
                 <Download className="w-4 h-4" />
                 <span>Export</span>
                 {selectedLeads.size > 0 && (
-                  <span className="px-2 py-0.5 bg-white/20 rounded-md text-xs">
+                  <span className="px-2 py-0.5 bg-white/20 dark:bg-black/20 rounded-md text-xs">
                     {selectedLeads.size}
                   </span>
                 )}
@@ -209,18 +210,18 @@ export default function HuntResultsPage({ params }: PageProps) {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="absolute right-0 top-full mt-2 w-48 bg-[var(--color-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl z-20 overflow-hidden"
+                    className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl z-20 overflow-hidden"
                   >
                     <button
                       onClick={handleExportJson}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
                     >
                       <FileJson className="w-4 h-4" />
                       <span>Download JSON</span>
                     </button>
                     <button
                       onClick={handleExportCsv}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
                     >
                       <FileSpreadsheet className="w-4 h-4" />
                       <span>Download CSV</span>
@@ -230,7 +231,7 @@ export default function HuntResultsPage({ params }: PageProps) {
               )}
             </div>
 
-            <button className="p-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-light)] transition-colors">
+            <button className="p-2.5 bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-xl text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
               <MoreVertical className="w-5 h-5" />
             </button>
           </div>
@@ -247,30 +248,27 @@ export default function HuntResultsPage({ params }: PageProps) {
             title="Total Leads"
             value={stats.total}
             icon={Users}
-            color="purple"
-            delay={0}
+            variant="white"
           />
           <StatsCard
             title="CEO Emails"
             value={stats.withCeoEmail}
-            subtitle={`${Math.round((stats.withCeoEmail / stats.total) * 100) || 0}% success`}
             icon={Mail}
-            color="blue"
-            delay={0.1}
+            variant="white"
+            trend={`${Math.round((stats.withCeoEmail / stats.total) * 100) || 0}% success`}
+            trendUp={true}
           />
           <StatsCard
             title="LinkedIn Found"
             value={stats.withLinkedIn}
             icon={Linkedin}
-            color="cyan"
-            delay={0.2}
+            variant="white"
           />
           <StatsCard
             title="Total Cost"
             value={formatCurrency(stats.cost)}
             icon={DollarSign}
-            color="green"
-            delay={0.3}
+            variant="white"
           />
         </motion.div>
 
@@ -406,8 +404,8 @@ function FilterToggle({ active, onClick, icon: Icon, label }: FilterToggleProps)
       className={`
         flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
         ${active
-          ? 'bg-[var(--color-brand-purple)]/20 text-[var(--color-brand-purple)] border border-[var(--color-brand-purple)]/50'
-          : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:border-[var(--color-border-light)]'
+          ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white'
+          : 'bg-white dark:bg-black text-neutral-500 border-neutral-200 dark:border-neutral-800 hover:border-black dark:hover:border-white'
         }
       `}
     >

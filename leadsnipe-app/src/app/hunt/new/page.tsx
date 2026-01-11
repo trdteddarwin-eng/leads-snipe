@@ -22,6 +22,7 @@ import {
   DECISION_MAKER_CATEGORIES,
 } from '@/lib/types';
 import { calculateEstimatedCost, calculateEstimatedTime, formatCurrency, formatDuration } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 export default function NewHunt() {
   const router = useRouter();
@@ -71,18 +72,8 @@ export default function NewHunt() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/hunt/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        router.push(`/hunt/${data.hunt_id}/progress`);
-      } else {
-        throw new Error('Failed to create hunt');
-      }
+      const huntId = await api.createHunt(formData);
+      router.push(`/hunt/${huntId}/progress`);
     } catch (error) {
       console.error('Failed to create hunt:', error);
       setIsSubmitting(false);
@@ -92,19 +83,21 @@ export default function NewHunt() {
   const isValid = formData.industry.trim() && formData.location.trim();
 
   return (
-    <div className="min-h-screen py-12 px-6">
+    <div className="py-12 px-6 animate-in fade-in duration-700">
       <div className="max-w-2xl mx-auto">
         {/* Back button */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="mb-8"
+          className="mb-10"
         >
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="inline-flex items-center gap-2 text-neutral-400 hover:text-neutral-900 font-bold text-xs transition-colors group"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-white border border-neutral-100 flex items-center justify-center group-hover:bg-neutral-50 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+            </div>
             <span>Back to Dashboard</span>
           </Link>
         </motion.div>
@@ -114,260 +107,228 @@ export default function NewHunt() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="relative"
+          className="bg-white rounded-[32px] border border-neutral-100 p-8 md:p-12 shadow-soft"
         >
-          {/* Gradient border effect */}
-          <div className="absolute -inset-px rounded-3xl bg-gradient-to-r from-[var(--color-brand-purple)] via-[var(--color-brand-blue)] to-[var(--color-brand-cyan)] opacity-20" />
-
-          <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-8 md:p-10">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-14 h-14 bg-gradient-to-br from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--color-brand-purple)]/20">
-                <Target className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--color-text-primary)]">
-                  Create New Lead Hunt
-                </h1>
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  Find decision makers in your target market
-                </p>
-              </div>
+          {/* Header */}
+          <div className="flex items-center gap-5 mb-10">
+            <div className="w-16 h-16 bg-neutral-900 rounded-[20px] flex items-center justify-center shadow-lg shadow-neutral-900/20">
+              <Target className="w-8 h-8 text-white" />
             </div>
+            <div>
+              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                Create New Lead Hunt
+              </h1>
+              <p className="text-sm text-neutral-500 font-medium mt-1">
+                Find decision makers in your target market
+              </p>
+            </div>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Industry Input */}
-              <div ref={industryRef} className="relative">
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] mb-2">
-                  <Briefcase className="w-4 h-4" />
-                  Industry *
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Industry Input */}
+            <div ref={industryRef} className="relative">
+              <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-3">
+                Industry
+              </label>
+              <div className="relative group">
+                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
                 <input
                   type="text"
                   value={formData.industry}
                   onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                   onFocus={() => setShowIndustrySuggestions(true)}
                   placeholder="e.g., HVAC contractor, Dentist, Plumber"
-                  className="input-field"
+                  className="w-full bg-neutral-50/50 border border-neutral-100 rounded-xl py-4 pl-12 pr-4 text-sm font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all text-neutral-900 placeholder:text-neutral-400"
                   required
                 />
-
-                <AnimatePresence>
-                  {showIndustrySuggestions && filteredIndustries.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute z-10 top-full left-0 right-0 mt-2 bg-[var(--color-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto"
-                    >
-                      {filteredIndustries.map((industry) => (
-                        <button
-                          key={industry}
-                          type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, industry });
-                            setShowIndustrySuggestions(false);
-                          }}
-                          className="w-full px-4 py-3 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] transition-colors"
-                        >
-                          {industry}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
-              {/* Location Input */}
-              <div ref={locationRef} className="relative">
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] mb-2">
-                  <MapPin className="w-4 h-4" />
-                  Location *
-                </label>
+              <AnimatePresence>
+                {showIndustrySuggestions && filteredIndustries.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute z-10 top-full left-0 right-0 mt-3 bg-white border border-neutral-100 rounded-2xl shadow-premium overflow-hidden max-h-60 overflow-y-auto"
+                  >
+                    {filteredIndustries.map((industry) => (
+                      <button
+                        key={industry}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, industry });
+                          setShowIndustrySuggestions(false);
+                        }}
+                        className="w-full px-5 py-3.5 text-left text-sm font-bold text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                      >
+                        {industry}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Location Input */}
+            <div ref={locationRef} className="relative">
+              <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-3">
+                Location
+              </label>
+              <div className="relative group">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   onFocus={() => setShowLocationSuggestions(true)}
                   placeholder="e.g., New Jersey, Phoenix area"
-                  className="input-field"
+                  className="w-full bg-neutral-50/50 border border-neutral-100 rounded-xl py-4 pl-12 pr-4 text-sm font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all text-neutral-900 placeholder:text-neutral-400"
                   required
                 />
-
-                <AnimatePresence>
-                  {showLocationSuggestions && filteredLocations.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute z-10 top-full left-0 right-0 mt-2 bg-[var(--color-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto"
-                    >
-                      {filteredLocations.map((location) => (
-                        <button
-                          key={location}
-                          type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, location });
-                            setShowLocationSuggestions(false);
-                          }}
-                          className="w-full px-4 py-3 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] transition-colors"
-                        >
-                          {location}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
-              {/* Lead Count Slider */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] mb-4">
-                  <Users className="w-4 h-4" />
-                  Number of Leads *
-                </label>
+              <AnimatePresence>
+                {showLocationSuggestions && filteredLocations.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute z-10 top-full left-0 right-0 mt-3 bg-white border border-neutral-100 rounded-2xl shadow-premium overflow-hidden max-h-60 overflow-y-auto"
+                  >
+                    {filteredLocations.map((location) => (
+                      <button
+                        key={location}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, location });
+                          setShowLocationSuggestions(false);
+                        }}
+                        className="w-full px-5 py-3.5 text-left text-sm font-bold text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                      >
+                        {location}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--color-text-muted)]">10</span>
-                    <span className="px-4 py-2 bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] rounded-lg text-white font-bold text-lg">
+            {/* Lead Count Slider */}
+            <div className="space-y-5">
+              <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
+                Target Quantity
+              </label>
+
+              <div className="bg-neutral-50/50 p-6 rounded-2xl border border-neutral-100 space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-neutral-300">10</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-4xl font-bold text-neutral-900">
                       {formData.target}
                     </span>
-                    <span className="text-sm text-[var(--color-text-muted)]">100</span>
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">LEADS</span>
                   </div>
-
-                  <input
-                    type="range"
-                    min="10"
-                    max="100"
-                    step="5"
-                    value={formData.target}
-                    onChange={(e) => setFormData({ ...formData, target: parseInt(e.target.value) })}
-                    className="w-full h-2 bg-[var(--color-abyss)] rounded-lg appearance-none cursor-pointer
-                      [&::-webkit-slider-thumb]:appearance-none
-                      [&::-webkit-slider-thumb]:w-5
-                      [&::-webkit-slider-thumb]:h-5
-                      [&::-webkit-slider-thumb]:bg-gradient-to-r
-                      [&::-webkit-slider-thumb]:from-[var(--color-brand-purple)]
-                      [&::-webkit-slider-thumb]:to-[var(--color-brand-blue)]
-                      [&::-webkit-slider-thumb]:rounded-full
-                      [&::-webkit-slider-thumb]:cursor-pointer
-                      [&::-webkit-slider-thumb]:shadow-lg
-                      [&::-webkit-slider-thumb]:shadow-[var(--color-brand-purple)]/30
-                      [&::-webkit-slider-thumb]:transition-transform
-                      [&::-webkit-slider-thumb]:hover:scale-110
-                    "
-                  />
+                  <span className="text-xs font-bold text-neutral-300">100</span>
                 </div>
-              </div>
 
-              {/* Decision Maker Category */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] mb-2">
-                  <Target className="w-4 h-4" />
-                  Decision Maker Category
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="input-field cursor-pointer"
-                >
-                  {DECISION_MAKER_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="5"
+                  value={formData.target}
+                  onChange={(e) => setFormData({ ...formData, target: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-neutral-900"
+                />
               </div>
+            </div>
 
-              {/* Estimation Panel */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-[var(--color-abyss)] border border-[var(--color-border)] rounded-2xl p-5"
+            {/* Decision Maker Category */}
+            <div>
+              <label className="block text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-3">
+                Decision Maker Role
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full bg-neutral-50/50 border border-neutral-100 rounded-xl py-4 px-4 text-sm font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-black/5 transition-all text-neutral-900 cursor-pointer appearance-none"
               >
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-4 h-4 text-[var(--color-brand-cyan)]" />
-                  <span className="text-sm font-medium text-[var(--color-text-primary)]">
-                    Estimated Results
-                  </span>
+                {DECISION_MAKER_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Estimation Panel */}
+            <div className="bg-neutral-900 rounded-[28px] p-8 text-white space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-white" />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[var(--color-brand-purple)]/10 rounded-xl flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-[var(--color-brand-purple)]" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-[var(--color-text-primary)]">
-                        {formatCurrency(estimatedCost)}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">Estimated cost</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[var(--color-brand-blue)]/10 rounded-xl flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-[var(--color-brand-blue)]" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-[var(--color-text-primary)]">
-                        ~{formatDuration(estimatedTime)}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">Estimated time</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
-                  <Info className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Cost is $0.04 per valid CEO email found. LinkedIn discovery is free.
-                    Actual results may vary based on industry and location.
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
-                <Link href="/" className="flex-1">
-                  <button
-                    type="button"
-                    className="w-full py-4 px-6 bg-[var(--color-elevated)] border border-[var(--color-border)] rounded-xl font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-light)] transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </Link>
-
-                <motion.button
-                  type="submit"
-                  disabled={!isValid || isSubmitting}
-                  whileHover={isValid && !isSubmitting ? { scale: 1.02 } : {}}
-                  whileTap={isValid && !isSubmitting ? { scale: 0.98 } : {}}
-                  className={`
-                    flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold text-white transition-all
-                    ${isValid && !isSubmitting
-                      ? 'bg-gradient-to-r from-[var(--color-brand-purple)] to-[var(--color-brand-blue)] shadow-lg shadow-[var(--color-brand-purple)]/25 hover:shadow-[var(--color-brand-purple)]/40'
-                      : 'bg-[var(--color-elevated)] text-[var(--color-text-muted)] cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Starting Hunt...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Target className="w-5 h-5" />
-                      <span>Generate Leads</span>
-                    </>
-                  )}
-                </motion.button>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  Estimated Deployment Yield
+                </span>
               </div>
-            </form>
-          </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold">{formatCurrency(estimatedCost)}</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Estimated Cost</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold">~{formatDuration(estimatedTime)}</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Estimated Time</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 pt-6 border-t border-white/10">
+                <Info className="w-4 h-4 text-white/20 flex-shrink-0 mt-0.5" />
+                <p className="text-[10px] text-white/40 font-medium leading-relaxed uppercase tracking-[0.05em]">
+                  Cost is $0.04 per valid decision maker email. LinkedIn discovery is included.
+                  Final yield may vary based on data density in target location.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 pt-4">
+              <Link href="/" className="flex-1">
+                <button
+                  type="button"
+                  className="w-full py-4.5 px-6 rounded-2xl font-bold text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+              </Link>
+
+              <button
+                type="submit"
+                disabled={!isValid || isSubmitting}
+                className={`
+                  flex-1 flex items-center justify-center gap-3 py-4.5 px-6 rounded-2xl font-bold text-sm transition-all shadow-xl
+                  ${isValid && !isSubmitting
+                    ? 'bg-neutral-900 text-white shadow-neutral-900/20 hover:bg-neutral-800'
+                    : 'bg-neutral-100 text-neutral-300 cursor-not-allowed shadow-none'
+                  }
+                `}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Deploying Snipers...</span>
+                  </>
+                ) : (
+                  <>
+                    <Target className="w-5 h-5" />
+                    <span>Generate Leads</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </motion.div>
       </div>
     </div>

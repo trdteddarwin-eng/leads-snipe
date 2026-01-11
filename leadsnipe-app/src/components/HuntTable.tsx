@@ -7,18 +7,13 @@ import {
   Calendar,
   MapPin,
   Target,
-  Users,
   MoreVertical,
   Eye,
   Download,
   Trash2,
-  Play,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
 } from 'lucide-react';
 import type { Hunt } from '@/lib/types';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 interface HuntTableProps {
   hunts: Hunt[];
@@ -27,30 +22,26 @@ interface HuntTableProps {
 
 export function HuntTable({ hunts, onDelete }: HuntTableProps) {
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden bg-white rounded-[24px] border border-neutral-100 shadow-soft">
       {/* Table Header */}
-      <div className="hidden md:grid grid-cols-[1fr_1fr_100px_100px_80px] gap-4 px-6 py-3 border-b border-[var(--color-border)] text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          <span>Date & Industry</span>
+      <div className="hidden md:grid grid-cols-[1.5fr_1fr_100px_140px_60px] gap-6 px-10 py-6 border-b border-neutral-50 bg-white">
+        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.1em]">
+          Campaign
         </div>
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4" />
-          <span>Location</span>
+        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.1em]">
+          Location
         </div>
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          <span>Leads</span>
+        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.1em]">
+          Leads
         </div>
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4" />
-          <span>Status</span>
+        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.1em]">
+          Status
         </div>
         <div></div>
       </div>
 
       {/* Table Body */}
-      <div className="divide-y divide-[var(--color-border)]">
+      <div className="divide-y divide-neutral-50">
         {hunts.length === 0 ? (
           <EmptyState />
         ) : (
@@ -73,34 +64,13 @@ function HuntRow({ hunt, index, onDelete }: HuntRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const statusConfig = {
-    pending: {
-      icon: Clock,
-      label: 'Pending',
-      color: 'text-[var(--color-warning)]',
-      bg: 'bg-[var(--color-warning)]/10',
-    },
-    running: {
-      icon: Play,
-      label: 'Running',
-      color: 'text-[var(--color-brand-purple)]',
-      bg: 'bg-[var(--color-brand-purple)]/10',
-    },
-    completed: {
-      icon: CheckCircle2,
-      label: 'Complete',
-      color: 'text-[var(--color-success)]',
-      bg: 'bg-[var(--color-success)]/10',
-    },
-    failed: {
-      icon: AlertCircle,
-      label: 'Failed',
-      color: 'text-[var(--color-error)]',
-      bg: 'bg-[var(--color-error)]/10',
-    },
+    pending: { label: 'Pending', color: 'text-neutral-500', bg: 'bg-neutral-100' },
+    running: { label: 'Running', color: 'text-indigo-600', bg: 'bg-indigo-50 animate-pulse' },
+    completed: { label: 'Completed', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    failed: { label: 'Failed', color: 'text-rose-600', bg: 'bg-rose-50' },
   };
 
-  const status = statusConfig[hunt.status];
-  const StatusIcon = status.icon;
+  const status = statusConfig[hunt.status] || statusConfig.pending;
 
   const rowHref = hunt.status === 'running'
     ? `/hunt/${hunt.hunt_id}/progress`
@@ -110,71 +80,60 @@ function HuntRow({ hunt, index, onDelete }: HuntRowProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ delay: index * 0.05 }}
-      className="table-row"
+      className="group relative"
     >
       <Link
         href={rowHref}
-        className="block md:grid grid-cols-[1fr_1fr_100px_100px_80px] gap-4 px-6 py-4 hover:bg-[var(--color-bg-gray-50)] transition-colors border-b border-[var(--color-border)] last:border-0"
+        className="block md:grid grid-cols-[1.5fr_1fr_100px_140px_60px] gap-6 px-10 py-8 hover:bg-neutral-50 transition-all items-center"
       >
         {/* Date & Industry */}
-        <div className="mb-2 md:mb-0">
-          <p className="text-sm text-[var(--color-text-muted)] mb-1 md:hidden">
-            {formatDate(hunt.created_at)}
-          </p>
-          <p className="font-medium text-[var(--color-text-primary)]">
+        <div>
+          <p className="font-bold text-neutral-900 text-base tracking-tight mb-1">
             {hunt.industry}
           </p>
-          <p className="text-sm text-[var(--color-text-muted)] hidden md:block">
+          <div className="flex items-center gap-2 text-[11px] text-neutral-400 font-medium">
+            <Calendar className="w-3.5 h-3.5" />
             {formatDate(hunt.created_at)}
-          </p>
+          </div>
         </div>
 
         {/* Location */}
-        <div className="flex items-center gap-2 mb-2 md:mb-0">
-          <MapPin className="w-4 h-4 text-[var(--color-text-muted)] md:hidden" />
-          <span className="text-[var(--color-text-secondary)]">{hunt.location}</span>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-neutral-50 flex items-center justify-center text-neutral-400">
+            <MapPin className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-semibold text-neutral-600 truncate">{hunt.location}</span>
         </div>
 
         {/* Leads */}
-        <div className="flex items-center gap-2 mb-2 md:mb-0">
-          <Users className="w-4 h-4 text-[var(--color-text-muted)] md:hidden" />
-          <div>
-            <span className="font-semibold text-[var(--color-text-primary)]">
-              {hunt.total_leads ?? hunt.target}
-            </span>
-            {hunt.cost !== undefined && (
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {formatCurrency(hunt.cost)}
-              </p>
-            )}
-          </div>
+        <div>
+          <span className="text-sm font-bold text-neutral-900">
+            {hunt.total_leads ?? hunt.target}
+          </span>
         </div>
 
         {/* Status */}
         <div className="flex items-center">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${status.color} ${status.bg}`}>
-            <StatusIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{status.label}</span>
+          <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold tracking-tight ${status.color} ${status.bg}`}>
+            {status.label}
           </span>
         </div>
 
         {/* Actions */}
         <div className="flex items-center justify-end" onClick={(e) => e.preventDefault()}>
           <div className="relative">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={(e) => {
                 e.preventDefault();
                 setMenuOpen(!menuOpen);
               }}
-              className="p-2 rounded-lg hover:bg-[var(--color-bg-gray-50)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+              className="w-10 h-10 flex items-center justify-center border-2 border-transparent hover:border-black dark:hover:border-black text-neutral-400 hover:text-black dark:hover:text-black transition-all"
             >
-              <MoreVertical className="w-4 h-4" />
-            </motion.button>
+              <MoreVertical className="w-5 h-5" />
+            </button>
 
             <AnimatePresence>
               {menuOpen && (
@@ -187,25 +146,25 @@ function HuntRow({ hunt, index, onDelete }: HuntRowProps) {
                     onClick={() => setMenuOpen(false)}
                   />
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 top-full mt-1 w-48 bg-white border border-[var(--color-border)] rounded-xl shadow-xl z-20 overflow-hidden"
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-white border-2 border-black dark:border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] z-20 overflow-hidden font-mono"
                   >
                     <Link
                       href={rowHref}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-gray-50)] hover:text-[var(--color-text-primary)] transition-colors"
+                      className="flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-black dark:text-black hover:bg-black hover:text-white dark:hover:bg-black dark:hover:text-white transition-all"
                     >
                       <Eye className="w-4 h-4" />
-                      <span>View Details</span>
+                      <span>View_Data</span>
                     </Link>
                     {hunt.status === 'completed' && (
                       <Link
                         href={`/api/hunt/${hunt.hunt_id}/export?format=json`}
-                        className="flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-gray-50)] hover:text-[var(--color-text-primary)] transition-colors"
+                        className="flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-black dark:text-black hover:bg-black hover:text-white dark:hover:bg-black dark:hover:text-white transition-all border-t-2 border-black dark:border-black"
                       >
                         <Download className="w-4 h-4" />
-                        <span>Download JSON</span>
+                        <span>Export_JSON</span>
                       </Link>
                     )}
                     {onDelete && (
@@ -214,10 +173,10 @@ function HuntRow({ hunt, index, onDelete }: HuntRowProps) {
                           onDelete(hunt.hunt_id);
                           setMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors"
+                        className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500 hover:text-white transition-all border-t-2 border-black dark:border-black"
                       >
                         <Trash2 className="w-4 h-4" />
-                        <span>Delete Hunt</span>
+                        <span>Delete_Data</span>
                       </button>
                     )}
                   </motion.div>
@@ -233,23 +192,16 @@ function HuntRow({ hunt, index, onDelete }: HuntRowProps) {
 
 function EmptyState() {
   return (
-    <div className="px-6 py-16 text-center">
-      <div className="w-16 h-16 mx-auto mb-4 bg-[var(--color-bg-gray-50)] rounded-2xl flex items-center justify-center">
-        <Target className="w-8 h-8 text-[var(--color-text-muted)]" />
+    <div className="px-6 py-24 flex flex-col items-center justify-center text-center">
+      <div className="w-20 h-20 bg-neutral-50 dark:bg-neutral-950 border-2 border-dashed border-neutral-200 dark:border-neutral-800 flex items-center justify-center mb-6">
+        <Target className="w-10 h-10 text-neutral-300 dark:text-neutral-700" />
       </div>
-      <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-        No hunts yet
+      <h3 className="text-xl font-black text-black dark:text-white uppercase tracking-tighter mb-2">
+        Zero_Active_Hunts
       </h3>
-      <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm mx-auto">
-        Start your first lead hunt to find decision makers at businesses in your target market.
+      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">
+        Initiate_New_Protocol_To_Begin_Extraction
       </p>
-      <Link
-        href="/hunt/new"
-        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--color-brand-blue)] to-purple-600 rounded-xl font-semibold text-white hover:opacity-90 transition-opacity"
-      >
-        <Target className="w-4 h-4" />
-        <span>Start First Hunt</span>
-      </Link>
     </div>
   );
 }

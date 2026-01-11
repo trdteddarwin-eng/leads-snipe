@@ -66,6 +66,9 @@ class HuntResponse(BaseModel):
 
 class HuntStatus(BaseModel):
     hunt_id: str
+    niche: str
+    location: str
+    limit: int
     status: HuntStage
     progress_percent: int
     stage_message: str
@@ -92,6 +95,7 @@ class Lead(BaseModel):
     has_direct_contact: bool = False
     email_draft: Optional[dict] = None
     scraped_at: Optional[str] = None
+    user_ratings_total: Optional[int] = 0
 
 
 class LeadListResponse(BaseModel):
@@ -806,6 +810,9 @@ async def get_hunt_status(hunt_id: str):
     hunt = hunts[hunt_id]
     return HuntStatus(
         hunt_id=hunt["hunt_id"],
+        niche=hunt.get("niche", "Unknown"),
+        location=hunt.get("location", "Unknown"),
+        limit=hunt.get("limit", 0),
         status=hunt["status"],
         progress_percent=hunt["progress_percent"],
         stage_message=hunt["stage_message"],
