@@ -9,6 +9,19 @@ export interface DecisionMaker {
   status: 'valid' | 'invalid' | 'pending';
 }
 
+export interface WebsiteContent {
+  raw_text: string;
+  pages_scraped: string[];
+  word_count: number;
+  scraped_at?: string;
+}
+
+export interface EmailDraft {
+  subject: string;
+  body: string;
+  gmail_draft_id?: string;
+}
+
 export interface Lead {
   id: string;
   name: string;
@@ -19,6 +32,13 @@ export interface Lead {
   rating: number;
   user_ratings_total: number;
   decision_maker: DecisionMaker | null;
+  // Insight Engine fields
+  website_content?: WebsiteContent;
+  quick_insights?: string[];
+  // Email fields
+  email_draft?: EmailDraft;
+  email_sent?: boolean;
+  email_sent_at?: string;
 }
 
 export interface HuntProgress {

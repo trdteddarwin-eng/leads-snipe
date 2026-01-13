@@ -137,7 +137,7 @@ function CampaignCard({ hunt }: { hunt: Hunt }) {
 
             <div className="mt-8 pt-6 border-t border-neutral-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                    <div className={`w-2 h-2 rounded-full ${status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{status}</span>
                 </div>
                 <Link href={`/hunt/${hunt.hunt_id}/results`}>

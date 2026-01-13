@@ -15,6 +15,8 @@ import {
   Check,
   ExternalLink,
   ChevronDown,
+  Sparkles,
+  Send,
 } from 'lucide-react';
 import type { Lead } from '@/lib/types';
 import { extractDomain, copyToClipboard } from '@/lib/utils';
@@ -23,10 +25,12 @@ interface LeadCardProps {
   lead: Lead;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
+  onViewInsights?: (lead: Lead) => void;
+  onSendEmail?: (lead: Lead) => void;
   delay?: number;
 }
 
-export function LeadCard({ lead, isSelected, onSelect, delay = 0 }: LeadCardProps) {
+export function LeadCard({ lead, isSelected, onSelect, onViewInsights, onSendEmail, delay = 0 }: LeadCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -159,6 +163,23 @@ export function LeadCard({ lead, isSelected, onSelect, delay = 0 }: LeadCardProp
               )}
             </div>
           </div>
+        )}
+
+        {/* Send Outreach Button - Opens Integrated Panel with Intel + Email */}
+        {onSendEmail && (lead.decision_maker?.email || lead.email) && (
+          <button
+            onClick={() => onSendEmail(lead)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 mb-4 bg-neutral-900 border border-neutral-900 rounded-xl text-xs font-bold text-white hover:bg-neutral-800 transition-all group shadow-lg shadow-neutral-900/20"
+          >
+            <Send className="w-4 h-4" />
+            <span>Send Outreach</span>
+            {lead.quick_insights && lead.quick_insights.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-white/20 text-white text-[9px] font-black rounded-full flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" />
+                {lead.quick_insights.length}
+              </span>
+            )}
+          </button>
         )}
 
         {/* Expand/Collapse */}

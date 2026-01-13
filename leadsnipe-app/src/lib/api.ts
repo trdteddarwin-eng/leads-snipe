@@ -46,6 +46,22 @@ interface BackendLead {
     owner_name?: string;
     linkedin_url?: string;
     email_verified?: boolean;
+    // Insight fields
+    website_content?: {
+        raw_text: string;
+        pages_scraped: string[];
+        word_count: number;
+        scraped_at?: string;
+    };
+    quick_insights?: string[];
+    // Email fields
+    email_draft?: {
+        subject: string;
+        body: string;
+        gmail_draft_id?: string;
+    };
+    email_sent?: boolean;
+    email_sent_at?: string;
 }
 
 export const api = {
@@ -102,7 +118,14 @@ export const api = {
                 job_title: 'Owner',
                 linkedin_url: l.linkedin_url || null,
                 status: l.email_verified ? 'valid' : 'pending'
-            } : null
+            } : null,
+            // Insight fields
+            website_content: l.website_content,
+            quick_insights: l.quick_insights,
+            // Email fields
+            email_draft: l.email_draft,
+            email_sent: l.email_sent,
+            email_sent_at: l.email_sent_at
         }));
 
         // Derive hunt status for frontend
@@ -152,5 +175,61 @@ export const api = {
 
     connectGmail: async (): Promise<{ auth_url: string }> => {
         return fetchJson<{ auth_url: string }>('/api/gmail/connect');
+    },
+
+    // ========== Insight Engine APIs ==========
+
+    // Get cached insights for a lead
+    getLeadInsights: async (leadId: string): Promise<{
+        quick_insights: string[];
+        website_content: { raw_text: string; pages_scraped: string[]; word_count: number } | null
+    }> => {
+        return fetchJson(`/api/lead/${leadId}/insights`);
+    },
+
+    // Generate insights for a lead (if not cached)
+    generateInsights: async (leadId: string): Promise<{
+        quick_insights: string[];
+        website_content: { raw_text: string; pages_scraped: string[]; word_count: number }
+    }> => {
+        return fetchJson(`/api/lead/${leadId}/insights/generate`, { method: 'POST' });
+    },
+
+    // Ask any question about a lead's website
+    askInsightQuestion: async (leadId: string, question: string): Promise<{ answer: string }> => {
+        return fetchJson(`/api/lead/${leadId}/insights/ask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+        });
+    },
+
+    // ========== Email Send APIs ==========
+
+    // Send a single email
+    sendEmail: async (to: string, subject: string, body: string): Promise<{
+        success: boolean;
+        message_id?: string;
+        error?: string
+    }> => {
+        return fetchJson('/api/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_email: to, subject, body })
+        });
+    },
+
+    // Send emails to multiple leads
+    sendBulkEmails: async (emails: Array<{ to_email: string; subject: string; body: string }>): Promise<{
+        total: number;
+        sent: number;
+        failed: number;
+        results: Array<{ to: string; success: boolean; error?: string }>
+    }> => {
+        return fetchJson('/api/email/send-bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emails })
+        });
     }
 };

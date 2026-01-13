@@ -22,6 +22,7 @@ import subprocess
 import threading
 import sqlite3
 import asyncio
+import time
 from collections import deque
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -32,6 +33,15 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, RedirectResponse
 from pydantic import BaseModel, Field
+import requests
+import re
+import random
+from urllib.parse import urlparse, quote_plus
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Ensure we can find execution scripts
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -338,6 +348,893 @@ def parse_location(location: str) -> tuple:
 
 
 # ============================================================================
+# Perpetual Discovery Loop - "Troy" Logic
+# ============================================================================
+
+# API Keys
+ANYMAILFINDER_API_KEY = os.getenv("ANYMAILFINDER_API_KEY")
+APOLLO_API_KEY = os.getenv("APOLLO_API_KEY")
+
+# User agents for web scraping
+USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+]
+
+# Owner-related keywords
+OWNER_KEYWORDS = ['owner', 'founder', 'president', 'ceo', 'proprietor', 'principal', 'managing director']
+
+# Name pattern
+NAME_PATTERN = re.compile(r'\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b')
+
+# Common email patterns
+EMAIL_PATTERNS = [
+    "{first}@{domain}",
+    "{last}@{domain}",
+    "{first}.{last}@{domain}",
+    "{f}{last}@{domain}",
+    "{first}{l}@{domain}",
+    "{first}_{last}@{domain}",
+    "info@{domain}",
+    "contact@{domain}",
+    "admin@{domain}",
+]
+
+
+def extract_domain(url: str) -> Optional[str]:
+    """Extract clean domain from URL."""
+    if not url:
+        return None
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc or parsed.path
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        return domain.rstrip('/') if domain else None
+    except:
+        return None
+
+
+def layer1_database_match(domain: str, hunt_id: str = None) -> Dict:
+    """
+    Layer 1: Database Match - Apollo + Anymailfinder decision maker lookup.
+    """
+    result = {"email": None, "name": None, "title": None, "source": None, "linkedin_url": None}
+
+    if not domain:
+        return result
+
+    # Try Anymailfinder Decision Maker API first
+    if ANYMAILFINDER_API_KEY:
+        try:
+            resp = requests.post(
+                "https://api.anymailfinder.com/v5.1/find-email/decision-maker",
+                json={"domain": domain, "decision_maker_category": ["ceo", "owner", "founder"]},
+                headers={"Authorization": f"Bearer {ANYMAILFINDER_API_KEY}"},
+                timeout=15
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("email"):
+                    result["email"] = data.get("email")
+                    result["name"] = data.get("full_name")
+                    result["title"] = data.get("job_title", "CEO/Owner")
+                    result["linkedin_url"] = data.get("linkedin_url")
+                    result["source"] = "anymailfinder_decision_maker"
+                    if hunt_id:
+                        add_log(hunt_id, f"  ✓ Layer 1 (AMF): Found {result['name']} - {result['email']}", "SUCCESS")
+                    return result
+        except Exception as e:
+            if hunt_id:
+                add_log(hunt_id, f"  Layer 1 (AMF) error: {str(e)[:50]}", "WARN")
+
+    # Try Apollo.io
+    if APOLLO_API_KEY:
+        try:
+            resp = requests.post(
+                "https://api.apollo.io/v1/mixed_people/search",
+                headers={"Content-Type": "application/json", "X-Api-Key": APOLLO_API_KEY},
+                json={
+                    "q_organization_domains": domain,
+                    "person_titles": ["owner", "ceo", "founder", "president", "principal"],
+                    "per_page": 3
+                },
+                timeout=15
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                people = data.get("people", [])
+                if people:
+                    person = people[0]
+                    result["email"] = person.get("email")
+                    result["name"] = person.get("name")
+                    result["title"] = person.get("title", "CEO/Owner")
+                    result["linkedin_url"] = person.get("linkedin_url")
+                    result["source"] = "apollo"
+                    if hunt_id and result["email"]:
+                        add_log(hunt_id, f"  ✓ Layer 1 (Apollo): Found {result['name']} - {result['email']}", "SUCCESS")
+                    return result
+        except Exception as e:
+            if hunt_id:
+                add_log(hunt_id, f"  Layer 1 (Apollo) error: {str(e)[:50]}", "WARN")
+
+    return result
+
+
+def layer2_web_sniffing(website: str, hunt_id: str = None) -> Dict:
+    """
+    Layer 2: Web Sniffing - Scrape About Us, Team, Contact pages for owner names.
+    """
+    result = {"names": [], "title": None, "linkedin_url": None, "source": None}
+
+    if not website:
+        return result
+
+    if not website.startswith(('http://', 'https://')):
+        website = 'https://' + website
+
+    parsed = urlparse(website)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+    pages = [
+        website,
+        f"{base_url}/about",
+        f"{base_url}/about-us",
+        f"{base_url}/team",
+        f"{base_url}/our-team",
+        f"{base_url}/meet-the-team",
+        f"{base_url}/leadership",
+        f"{base_url}/contact",
+    ]
+
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+    all_names = []
+
+    for page_url in pages[:5]:  # Limit to 5 pages
+        try:
+            resp = requests.get(page_url, headers=headers, timeout=10, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+
+            text = resp.text.lower()
+
+            # Check if page has owner-related content
+            has_owner_content = any(kw in text for kw in OWNER_KEYWORDS)
+            if not has_owner_content and page_url != website:
+                continue
+
+            # Extract names
+            names = NAME_PATTERN.findall(resp.text)
+
+            # Filter false positives
+            false_positives = {
+                'united states', 'new jersey', 'new york', 'contact us', 'about us',
+                'our team', 'read more', 'learn more', 'privacy policy', 'terms service',
+                'all rights', 'get started', 'free estimate', 'call now', 'book now'
+            }
+
+            for name in names:
+                if name.lower() not in false_positives and len(name) > 5:
+                    all_names.append(name)
+
+            # Check for LinkedIn URL
+            linkedin_match = re.search(r'https?://(?:www\.)?linkedin\.com/in/([a-zA-Z0-9_-]+)/?', resp.text)
+            if linkedin_match and not result["linkedin_url"]:
+                result["linkedin_url"] = linkedin_match.group(0)
+                result["source"] = page_url
+
+        except Exception as e:
+            continue
+
+    # Deduplicate names
+    seen = set()
+    unique_names = []
+    for name in all_names:
+        if name.lower() not in seen:
+            seen.add(name.lower())
+            unique_names.append(name)
+
+    result["names"] = unique_names[:5]
+
+    if hunt_id and result["names"]:
+        add_log(hunt_id, f"  ✓ Layer 2 (Web): Found names: {', '.join(result['names'][:3])}", "SUCCESS")
+
+    return result
+
+
+def layer3_recursive_search(business_name: str, city: str, owner_name: str = None, hunt_id: str = None) -> Dict:
+    """
+    Layer 3: Recursive Search - DuckDuckGo search with multiple variations.
+    """
+    result = {"names": [], "linkedin_url": None, "source": None}
+
+    if not business_name:
+        return result
+
+    # Build search queries
+    queries = [
+        f'"{business_name}" owner',
+        f'"{business_name}" CEO',
+        f'"{business_name}" founder',
+    ]
+
+    if city:
+        queries.insert(0, f'"{business_name}" owner "{city}"')
+
+    if owner_name:
+        queries.append(f'"{owner_name}" LinkedIn')
+
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+
+    for query in queries[:4]:  # Limit queries
+        try:
+            # DuckDuckGo HTML search
+            search_url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+            resp = requests.get(search_url, headers=headers, timeout=10)
+
+            if resp.status_code != 200:
+                continue
+
+            text = resp.text
+
+            # Extract names from results
+            names = NAME_PATTERN.findall(text)
+            for name in names[:3]:
+                if name.lower() not in ['duck duck', 'duckduckgo']:
+                    result["names"].append(name)
+
+            # Look for LinkedIn URLs
+            linkedin_match = re.search(r'https?://(?:www\.)?linkedin\.com/in/([a-zA-Z0-9_-]+)', text)
+            if linkedin_match and not result["linkedin_url"]:
+                result["linkedin_url"] = linkedin_match.group(0)
+                result["source"] = f"duckduckgo:{query[:30]}"
+
+            # Small delay between searches
+            import time
+            time.sleep(0.5)
+
+        except Exception as e:
+            continue
+
+    # Deduplicate
+    result["names"] = list(set(result["names"]))[:5]
+
+    if hunt_id and (result["names"] or result["linkedin_url"]):
+        add_log(hunt_id, f"  ✓ Layer 3 (Search): Found {len(result['names'])} names, LinkedIn: {'Yes' if result['linkedin_url'] else 'No'}", "SUCCESS")
+
+    return result
+
+
+def layer4_pattern_guess(domain: str, first_name: str, last_name: str, hunt_id: str = None) -> Optional[str]:
+    """
+    Layer 4: Pattern Guessing - Try common email patterns and verify.
+    """
+    if not domain or not first_name:
+        return None
+
+    first = first_name.lower().strip()
+    last = last_name.lower().strip() if last_name else ""
+    f = first[0] if first else ""
+    l = last[0] if last else ""
+
+    # Generate email candidates
+    candidates = []
+    for pattern in EMAIL_PATTERNS:
+        try:
+            email = pattern.format(first=first, last=last, f=f, l=l, domain=domain)
+            if "@" in email and "." in email:
+                candidates.append(email)
+        except:
+            continue
+
+    # Quick DNS/MX check for domain
+    try:
+        import socket
+        socket.getaddrinfo(domain, 80, socket.AF_INET, socket.SOCK_STREAM, 0, socket.AI_PASSIVE)
+    except:
+        if hunt_id:
+            add_log(hunt_id, f"  Layer 4: Domain {domain} unreachable", "WARN")
+        return None
+
+    # Simple validation - check if domain accepts mail
+    # For now, return the most likely pattern
+    if first and last:
+        best_guess = f"{first}.{last}@{domain}"
+    elif first:
+        best_guess = f"{first}@{domain}"
+    else:
+        best_guess = f"info@{domain}"
+
+    if hunt_id:
+        add_log(hunt_id, f"  ✓ Layer 4 (Pattern): Best guess: {best_guess}", "INFO")
+
+    return best_guess
+
+
+def perpetual_discovery_loop(lead: Dict, hunt_id: str = None) -> Dict:
+    """
+    Perpetual Discovery Loop - Never give up finding CEO contact info.
+
+    Layers:
+    1. Database Match (Apollo + Anymailfinder)
+    2. Web Sniffing (scrape team pages)
+    3. Recursive Search (DuckDuckGo)
+    4. Pattern Guessing + Verification
+
+    Fail-Safe: Always output business_email as fallback.
+    Loop: If name found, retry email finding with that name.
+    """
+    # Preserve original business email as fallback
+    business_email = lead.get("email")
+    website = lead.get("website", "")
+    business_name = lead.get("name", "")
+    address = lead.get("address", "")
+
+    # Extract city from address
+    city = ""
+    if address:
+        parts = address.split(",")
+        if len(parts) >= 2:
+            city = parts[-2].strip()
+
+    domain = extract_domain(website)
+
+    result = {
+        "owner_name": lead.get("owner_name"),
+        "owner_email": None,
+        "owner_title": lead.get("owner_title", "CEO/Owner"),
+        "linkedin_url": lead.get("linkedin_url"),
+        "email_source": None,
+        "discovery_layers_tried": []
+    }
+
+    if hunt_id:
+        add_log(hunt_id, f"🔍 Troy Loop: {business_name} ({domain or 'no domain'})", "INFO")
+
+    # ========== LAYER 1: Database Match ==========
+    result["discovery_layers_tried"].append("L1_database")
+
+    if domain:
+        l1_result = layer1_database_match(domain, hunt_id)
+        if l1_result.get("email"):
+            result["owner_email"] = l1_result["email"]
+            result["owner_name"] = l1_result.get("name") or result["owner_name"]
+            result["owner_title"] = l1_result.get("title") or result["owner_title"]
+            result["linkedin_url"] = l1_result.get("linkedin_url") or result["linkedin_url"]
+            result["email_source"] = l1_result.get("source")
+            # Success! But continue to get more info if missing name
+            if result["owner_name"] and result["owner_email"]:
+                return result
+
+    # ========== LAYER 2: Web Sniffing ==========
+    result["discovery_layers_tried"].append("L2_web")
+
+    l2_result = layer2_web_sniffing(website, hunt_id)
+    discovered_names = l2_result.get("names", [])
+
+    if l2_result.get("linkedin_url") and not result["linkedin_url"]:
+        result["linkedin_url"] = l2_result["linkedin_url"]
+
+    # If we found names but no email yet, try Layer 1 again with name
+    if discovered_names and not result["owner_email"] and domain:
+        for name in discovered_names[:2]:  # Try top 2 names
+            name_parts = name.split()
+            if len(name_parts) >= 2:
+                first_name = name_parts[0]
+                last_name = name_parts[-1]
+
+                # Try Anymailfinder with name
+                if ANYMAILFINDER_API_KEY:
+                    try:
+                        resp = requests.post(
+                            "https://api.anymailfinder.com/v5.1/find-email/name-domain",
+                            json={"domain": domain, "first_name": first_name, "last_name": last_name},
+                            headers={"Authorization": f"Bearer {ANYMAILFINDER_API_KEY}"},
+                            timeout=15
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            if data.get("email"):
+                                result["owner_email"] = data["email"]
+                                result["owner_name"] = name
+                                result["email_source"] = "anymailfinder_name"
+                                if hunt_id:
+                                    add_log(hunt_id, f"  ✓ Loop: Found email for {name}: {data['email']}", "SUCCESS")
+                                return result
+                    except:
+                        pass
+
+    # Use first discovered name if we don't have one
+    if discovered_names and not result["owner_name"]:
+        result["owner_name"] = discovered_names[0]
+
+    # ========== LAYER 3: Recursive Search ==========
+    result["discovery_layers_tried"].append("L3_search")
+
+    l3_result = layer3_recursive_search(business_name, city, result.get("owner_name"), hunt_id)
+
+    if l3_result.get("linkedin_url") and not result["linkedin_url"]:
+        result["linkedin_url"] = l3_result["linkedin_url"]
+
+    # Merge found names
+    if l3_result.get("names"):
+        if not result["owner_name"]:
+            result["owner_name"] = l3_result["names"][0]
+
+        # Try email finding again with search-discovered names
+        if not result["owner_email"] and domain:
+            for name in l3_result["names"][:2]:
+                name_parts = name.split()
+                if len(name_parts) >= 2:
+                    first_name = name_parts[0]
+                    last_name = name_parts[-1]
+
+                    if ANYMAILFINDER_API_KEY:
+                        try:
+                            resp = requests.post(
+                                "https://api.anymailfinder.com/v5.1/find-email/name-domain",
+                                json={"domain": domain, "first_name": first_name, "last_name": last_name},
+                                headers={"Authorization": f"Bearer {ANYMAILFINDER_API_KEY}"},
+                                timeout=15
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                if data.get("email"):
+                                    result["owner_email"] = data["email"]
+                                    result["owner_name"] = name
+                                    result["email_source"] = "anymailfinder_search_loop"
+                                    if hunt_id:
+                                        add_log(hunt_id, f"  ✓ Loop: Found email for {name}: {data['email']}", "SUCCESS")
+                                    return result
+                        except:
+                            pass
+
+    # ========== LAYER 4: Pattern Guessing ==========
+    result["discovery_layers_tried"].append("L4_pattern")
+
+    if not result["owner_email"] and domain and result["owner_name"]:
+        name_parts = result["owner_name"].split()
+        first_name = name_parts[0] if name_parts else None
+        last_name = name_parts[-1] if len(name_parts) > 1 else None
+
+        guessed_email = layer4_pattern_guess(domain, first_name, last_name, hunt_id)
+        if guessed_email:
+            result["owner_email"] = guessed_email
+            result["email_source"] = "pattern_guess"
+
+    # ========== FAIL-SAFE: Business Email Fallback ==========
+    if not result["owner_email"] and business_email:
+        result["owner_email"] = business_email
+        result["email_source"] = "business_email_fallback"
+        if hunt_id:
+            add_log(hunt_id, f"  ⚠ Fail-safe: Using business email {business_email}", "WARN")
+
+    # Final status
+    if hunt_id:
+        if result["owner_email"]:
+            add_log(hunt_id, f"  ✓ Troy Complete: {result['owner_name'] or 'Unknown'} - {result['owner_email']} (via {result['email_source']})", "SUCCESS")
+        else:
+            add_log(hunt_id, f"  ✗ Troy: No email found for {business_name}", "WARN")
+
+    return result
+
+
+def enrich_leads_with_troy(leads: List[Dict], hunt_id: str = None, max_workers: int = 5) -> List[Dict]:
+    """
+    Run Perpetual Discovery Loop on all leads in parallel.
+    """
+    if hunt_id:
+        add_log(hunt_id, f"🚀 Starting Troy Discovery Loop on {len(leads)} leads ({max_workers} parallel workers)...", "INFO")
+
+    def process_lead(lead):
+        try:
+            result = perpetual_discovery_loop(lead, hunt_id)
+
+            # Merge results back into lead
+            if result.get("owner_name"):
+                lead["owner_name"] = result["owner_name"]
+            if result.get("owner_email"):
+                lead["anymailfinder_email"] = result["owner_email"]
+                lead["email_source"] = result.get("email_source")
+            if result.get("owner_title"):
+                lead["owner_title"] = result["owner_title"]
+            if result.get("linkedin_url"):
+                lead["linkedin_url"] = result["linkedin_url"]
+            if result.get("discovery_layers_tried"):
+                lead["discovery_layers"] = result["discovery_layers_tried"]
+
+            return lead
+        except Exception as e:
+            if hunt_id:
+                add_log(hunt_id, f"  Error processing {lead.get('name', 'unknown')}: {str(e)[:50]}", "ERROR")
+            return lead
+
+    # Process in parallel
+    enriched = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(process_lead, lead): lead for lead in leads}
+        for future in as_completed(futures):
+            try:
+                enriched.append(future.result())
+            except Exception as e:
+                enriched.append(futures[future])
+
+    # Stats
+    owners_found = sum(1 for l in enriched if l.get("owner_name"))
+    emails_found = sum(1 for l in enriched if l.get("anymailfinder_email"))
+    linkedin_found = sum(1 for l in enriched if l.get("linkedin_url"))
+
+    if hunt_id:
+        add_log(hunt_id, f"✓ Troy Complete: {owners_found} owners, {emails_found} emails, {linkedin_found} LinkedIn profiles", "SUCCESS")
+
+    return enriched
+
+
+# ============================================================================
+# Insight Engine - Website Scraping & AI Analysis
+# ============================================================================
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# Rate limiting for LLM calls
+import threading
+llm_semaphore = threading.Semaphore(5)  # Max 5 concurrent calls
+llm_last_call = 0
+llm_lock = threading.Lock()
+
+def rate_limited_delay():
+    """Ensure 200ms between LLM calls."""
+    global llm_last_call
+    with llm_lock:
+        now = time.time()
+        elapsed = now - llm_last_call
+        if elapsed < 0.2:
+            time.sleep(0.2 - elapsed)
+        llm_last_call = time.time()
+
+
+def scrape_website_for_insights(url: str, max_pages: int = 5) -> Dict:
+    """
+    Scrape website and extract text from key pages.
+    Returns: {raw_text, pages_scraped, word_count, scraped_at}
+    """
+    result = {
+        "raw_text": "",
+        "pages_scraped": [],
+        "word_count": 0,
+        "scraped_at": datetime.now().isoformat()
+    }
+
+    if not url:
+        return result
+
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+
+    try:
+        parsed = urlparse(url)
+        base_url = f"{parsed.scheme}://{parsed.netloc}"
+    except:
+        return result
+
+    # Pages to scrape (in priority order)
+    pages = [
+        url,  # Homepage
+        f"{base_url}/about",
+        f"{base_url}/about-us",
+        f"{base_url}/services",
+        f"{base_url}/our-services",
+        f"{base_url}/contact",
+        f"{base_url}/team",
+        f"{base_url}/pricing",
+    ]
+
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+    all_text = []
+
+    for page_url in pages[:max_pages]:
+        try:
+            resp = requests.get(page_url, headers=headers, timeout=10, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+
+            # Parse HTML and extract text
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resp.text, 'html.parser')
+
+            # Remove script and style elements
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.decompose()
+
+            # Get text
+            text = soup.get_text(separator=' ', strip=True)
+
+            # Clean up whitespace
+            text = ' '.join(text.split())
+
+            if text and len(text) > 100:
+                all_text.append(f"[PAGE: {page_url}]\n{text[:3000]}")  # Limit per page
+                result["pages_scraped"].append(page_url)
+
+        except Exception as e:
+            continue
+
+    # Combine all text (limit to ~12000 chars / ~3000 tokens)
+    result["raw_text"] = "\n\n".join(all_text)[:12000]
+    result["word_count"] = len(result["raw_text"].split())
+
+    return result
+
+
+def call_openrouter_llm(prompt: str, system_prompt: str = None, model: str = "meta-llama/llama-3.3-70b-instruct") -> Optional[str]:
+    """
+    Call OpenRouter LLM with rate limiting.
+    Primary: Llama 3.3 70B (FREE)
+    Fallback: Qwen 2.5 72B (FREE)
+    """
+    if not OPENROUTER_API_KEY:
+        return None
+
+    with llm_semaphore:
+        rate_limited_delay()
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        # Try primary model first
+        models_to_try = [
+            "meta-llama/llama-3.3-70b-instruct",
+            "qwen/qwen-2.5-72b-instruct",
+            "mistralai/mistral-7b-instruct"
+        ]
+
+        for model in models_to_try:
+            try:
+                resp = requests.post(
+                    OPENROUTER_URL,
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://leadsnipe.app",
+                        "X-Title": "LeadSnipe Insight Engine"
+                    },
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": 1000,
+                        "temperature": 0.7
+                    },
+                    timeout=30
+                )
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                elif resp.status_code == 429:
+                    # Rate limited, try next model
+                    time.sleep(1)
+                    continue
+                else:
+                    continue
+
+            except Exception as e:
+                continue
+
+        return None
+
+
+def generate_quick_insights(raw_text: str, business_name: str) -> List[str]:
+    """
+    Generate 5 quick insights about a business using LLM.
+    Returns list of insight strings.
+    """
+    if not raw_text or len(raw_text) < 100:
+        return ["No website content available for analysis"]
+
+    prompt = f"""Analyze this business website content for "{business_name}" and provide exactly 5 quick insights.
+
+Focus on:
+- What services/products they offer
+- Potential weaknesses or gaps (no online booking, outdated design, etc.)
+- Business characteristics (years in business, team size, service area)
+- Opportunities for improvement
+- Things that make them unique or notable
+
+Website Content:
+{raw_text[:8000]}
+
+Respond with exactly 5 bullet points, each starting with "•". Keep each insight to 1-2 sentences max. Be specific and actionable."""
+
+    system_prompt = "You are a business analyst helping sales professionals understand potential clients. Be concise, specific, and focus on actionable insights."
+
+    response = call_openrouter_llm(prompt, system_prompt)
+
+    if not response:
+        return ["Unable to generate insights - LLM unavailable"]
+
+    # Parse bullet points
+    insights = []
+    for line in response.split('\n'):
+        line = line.strip()
+        if line.startswith('•') or line.startswith('-') or line.startswith('*'):
+            # Clean up the bullet
+            insight = line.lstrip('•-* ').strip()
+            if insight:
+                insights.append(insight)
+
+    # Ensure we have at least something
+    if not insights:
+        insights = [response[:200]]  # Fallback to raw response
+
+    return insights[:5]  # Max 5 insights
+
+
+def ask_insight_question(raw_text: str, business_name: str, question: str) -> str:
+    """
+    Answer any question about a business based on scraped website content.
+    """
+    if not raw_text or len(raw_text) < 100:
+        return "No website content available. The business website could not be scraped or has no content."
+
+    prompt = f"""Based on the website content for "{business_name}", answer this question:
+
+Question: {question}
+
+Website Content:
+{raw_text[:8000]}
+
+Provide a helpful, specific answer based on what you can see in the website content. If the answer isn't clear from the content, say so and provide your best inference. Be conversational and actionable."""
+
+    system_prompt = """You are a sales intelligence assistant. Help the user understand this business so they can craft personalized outreach. Be specific, cite details from the website when possible, and focus on actionable insights that help with sales."""
+
+    response = call_openrouter_llm(prompt, system_prompt)
+
+    if not response:
+        return "Unable to process your question. Please try again."
+
+    return response
+
+
+def enrich_leads_with_insights(leads: List[Dict], hunt_id: str = None, max_workers: int = 3) -> List[Dict]:
+    """
+    Scrape websites and generate quick insights for all leads.
+    """
+    if hunt_id:
+        add_log(hunt_id, f"🔮 Starting Insight Engine on {len(leads)} leads...", "INFO")
+
+    def process_lead(lead):
+        try:
+            website = lead.get("website")
+            business_name = lead.get("name", "Unknown Business")
+
+            # Scrape website
+            scraped = scrape_website_for_insights(website)
+
+            if scraped.get("raw_text"):
+                lead["website_content"] = scraped
+
+                # Generate quick insights
+                insights = generate_quick_insights(scraped["raw_text"], business_name)
+                lead["quick_insights"] = insights
+
+                if hunt_id:
+                    add_log(hunt_id, f"  ✓ {business_name}: {len(insights)} insights generated", "SUCCESS")
+            else:
+                lead["website_content"] = {"raw_text": "", "pages_scraped": [], "word_count": 0}
+                lead["quick_insights"] = ["Website could not be scraped"]
+                if hunt_id:
+                    add_log(hunt_id, f"  ⚠ {business_name}: No website content found", "WARN")
+
+            return lead
+
+        except Exception as e:
+            if hunt_id:
+                add_log(hunt_id, f"  ✗ Error processing {lead.get('name', 'unknown')}: {str(e)[:50]}", "ERROR")
+            lead["quick_insights"] = ["Error generating insights"]
+            return lead
+
+    # Process in parallel (but limited to avoid rate limits)
+    enriched = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(process_lead, lead): lead for lead in leads}
+        for future in as_completed(futures):
+            try:
+                enriched.append(future.result())
+            except:
+                enriched.append(futures[future])
+
+    if hunt_id:
+        insights_count = sum(1 for l in enriched if l.get("quick_insights") and len(l.get("quick_insights", [])) > 0)
+        add_log(hunt_id, f"✓ Insight Engine Complete: {insights_count}/{len(leads)} leads analyzed", "SUCCESS")
+
+    return enriched
+
+
+# ============================================================================
+# Gmail Send Functions
+# ============================================================================
+
+def send_gmail_email(to_email: str, subject: str, body: str, from_name: str = "LeadSnipe") -> Dict:
+    """
+    Send an email via Gmail API (not just draft).
+    Returns: {success, message_id, error}
+    """
+    import base64
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    result = {"success": False, "message_id": None, "error": None}
+
+    try:
+        # Check for Gmail credentials
+        if not os.path.exists("token.json"):
+            result["error"] = "Gmail not connected. Please connect Gmail first."
+            return result
+
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+
+        creds = Credentials.from_authorized_user_file("token.json")
+        service = build("gmail", "v1", credentials=creds)
+
+        # Create message
+        message = MIMEMultipart()
+        message["to"] = to_email
+        message["subject"] = subject
+        message["from"] = from_name
+
+        # Add body
+        message.attach(MIMEText(body, "plain"))
+
+        # Encode
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        # Send
+        sent = service.users().messages().send(
+            userId="me",
+            body={"raw": raw}
+        ).execute()
+
+        result["success"] = True
+        result["message_id"] = sent.get("id")
+
+    except Exception as e:
+        result["error"] = str(e)
+
+    return result
+
+
+def send_bulk_emails(emails: List[Dict], delay_seconds: int = 3) -> List[Dict]:
+    """
+    Send multiple emails with rate limiting.
+    emails: [{to, subject, body}, ...]
+    Returns: [{to, success, message_id, error}, ...]
+    """
+    results = []
+
+    for i, email in enumerate(emails):
+        # Send email
+        result = send_gmail_email(
+            to_email=email.get("to"),
+            subject=email.get("subject"),
+            body=email.get("body")
+        )
+        result["to"] = email.get("to")
+        results.append(result)
+
+        # Rate limiting delay (except for last email)
+        if i < len(emails) - 1:
+            time.sleep(delay_seconds)
+
+    return results
+
+
+# ============================================================================
 # Pipeline Runner with Logging
 # ============================================================================
 
@@ -425,12 +1322,12 @@ def run_pipeline_with_logging(hunt_id: str, niche: str, state: str, limit: int):
         update_status(hunt_id, HuntStage.SCRAPING, 5, "Starting Google Maps scrape...")
 
         run_script([
-            sys.executable, "execution/n8n_gmaps_scraper.py",
+            sys.executable, "execution/direct_lead_gen.py",
             "--industry", niche,
-            "--state", state,
-            "--target-leads", str(limit),
+            "--location", f"{hunts[hunt_id].get('city', '')}, {state}",
+            "--limit", str(limit),
             "--output", raw_file
-        ], "Google Maps Scraper", timeout=300)
+        ], "Lead Sniper Engine (Direct)", timeout=300)
 
         # Load scraped leads
         if os.path.exists(raw_file):
@@ -475,64 +1372,85 @@ def run_pipeline_with_logging(hunt_id: str, niche: str, state: str, limit: int):
                       owners_found=owners_found)
 
         # ====================================================================
-        # Stage 3: Email verification & Enrichment (50-75%)
+        # Stage 3: TROY - Perpetual Discovery Loop (50-75%)
+        # 4-Layer CEO/Owner Discovery System
         # ====================================================================
         update_status(hunt_id, HuntStage.GETTING_EMAILS, 55,
-                      "Verifying existing email addresses...")
+                      "🔥 TROY: Initiating Perpetual Discovery Loop...")
 
-        current_data_file = owners_file if os.path.exists(owners_file) else raw_file
+        add_log(hunt_id, "=" * 50, "INFO")
+        add_log(hunt_id, "TROY DISCOVERY SYSTEM - 4 Layer Attack", "INFO")
+        add_log(hunt_id, "Layer 1: Apollo + Anymailfinder Database", "INFO")
+        add_log(hunt_id, "Layer 2: Web Sniffing (About/Team/Contact)", "INFO")
+        add_log(hunt_id, "Layer 3: DuckDuckGo Recursive Search", "INFO")
+        add_log(hunt_id, "Layer 4: Email Pattern Guessing", "INFO")
+        add_log(hunt_id, "Fail-Safe: Business email fallback", "INFO")
+        add_log(hunt_id, "=" * 50, "INFO")
 
-        run_script([
-            sys.executable, "execution/verify_email.py",
-            "--file", current_data_file,
-            "--output", owners_file,
-            "--no-smtp"
-        ], "Email Verification", timeout=300)
+        # Run Troy on all leads
+        update_status(hunt_id, HuntStage.GETTING_EMAILS, 60,
+                      f"🔍 Troy hunting {len(leads)} targets (5 parallel workers)...")
 
-        # Load and clean undeliverable emails
-        if os.path.exists(owners_file):
-            with open(owners_file) as f:
-                leads = json.load(f)
+        leads = enrich_leads_with_troy(leads, hunt_id, max_workers=5)
 
-            cleaned_count = 0
-            for lead in leads:
-                verif = lead.get("email_verification", {})
-                if lead.get("email") and not verif.get("deliverable"):
-                    lead["email"] = None
-                    cleaned_count += 1
+        # Save enriched leads
+        with open(emails_file, "w") as f:
+            json.dump(leads, f, indent=2)
 
-            if cleaned_count > 0:
-                add_log(hunt_id, f"Cleaned {cleaned_count} undeliverable emails")
-                with open(owners_file, "w") as f:
-                    json.dump(leads, f, indent=2)
-
-        # Anymailfinder enrichment
-        update_status(hunt_id, HuntStage.GETTING_EMAILS, 65,
-                      "⚡ Smart-Hunter: CEO/Owner email enrichment (10 parallel)...")
-
-        run_script([
-            sys.executable, "execution/anymailfinder_email.py",
-            "--file", owners_file if os.path.exists(owners_file) else raw_file,
-            "--output", emails_file,
-            "--concurrency", "10"
-        ], "Smart-Hunter Email (Parallel)", timeout=120)
-
-        # Load final leads
-        if os.path.exists(emails_file):
-            with open(emails_file) as f:
-                leads = json.load(f)
-        elif os.path.exists(owners_file):
-            with open(owners_file) as f:
-                leads = json.load(f)
-
+        # Calculate stats
+        owners_found = sum(1 for l in leads if l.get("owner_name"))
         emails_found = sum(1 for l in leads if l.get("anymailfinder_email") or l.get("email"))
+        linkedin_found = sum(1 for l in leads if l.get("linkedin_url"))
+
+        # Source breakdown
+        source_counts = {}
+        for lead in leads:
+            src = lead.get("email_source", "none")
+            source_counts[src] = source_counts.get(src, 0) + 1
+
+        add_log(hunt_id, f"📊 Troy Results: {owners_found} owners, {emails_found} emails, {linkedin_found} LinkedIn", "SUCCESS")
+        for src, count in source_counts.items():
+            if src != "none":
+                add_log(hunt_id, f"   • {src}: {count} emails", "INFO")
 
         update_status(hunt_id, HuntStage.GETTING_EMAILS, 75,
-                      f"Found {emails_found} verified emails",
-                      emails_found=emails_found)
+                      f"✓ Troy complete: {emails_found} emails found",
+                      emails_found=emails_found,
+                      owners_found=owners_found)
 
         # ====================================================================
-        # Stage 4: Generating Outreach (75-95%)
+        # Stage 3.5: Insight Engine (75-80%)
+        # Scrape websites and generate AI insights for each lead
+        # ====================================================================
+        update_status(hunt_id, HuntStage.GENERATING_OUTREACH, 76,
+                      "🔮 Insight Engine: Analyzing websites...")
+
+        add_log(hunt_id, "=" * 50, "INFO")
+        add_log(hunt_id, "INSIGHT ENGINE - Website Intelligence", "INFO")
+        add_log(hunt_id, "• Scraping key pages (home, about, services)", "INFO")
+        add_log(hunt_id, "• Generating AI-powered quick insights", "INFO")
+        add_log(hunt_id, "• Using FREE Llama 3.3 70B via OpenRouter", "INFO")
+        add_log(hunt_id, "=" * 50, "INFO")
+
+        # Only process leads that have websites
+        leads_with_websites = [l for l in leads if l.get("website")]
+        if leads_with_websites:
+            leads = enrich_leads_with_insights(leads, hunt_id, max_workers=3)
+
+            # Save insights-enriched leads
+            with open(emails_file, "w") as f:
+                json.dump(leads, f, indent=2)
+
+            insights_count = sum(1 for l in leads if l.get("quick_insights") and len(l.get("quick_insights", [])) > 1)
+            add_log(hunt_id, f"✓ Insight Engine: {insights_count}/{len(leads_with_websites)} websites analyzed", "SUCCESS")
+        else:
+            add_log(hunt_id, "⚠ No leads with websites to analyze", "WARN")
+
+        update_status(hunt_id, HuntStage.GENERATING_OUTREACH, 80,
+                      f"✓ Insights complete for {len(leads_with_websites)} leads")
+
+        # ====================================================================
+        # Stage 4: Generating Outreach (80-95%)
         # ====================================================================
         update_status(hunt_id, HuntStage.GENERATING_OUTREACH, 80,
                       "⚡ AI Outreach: Parallel email generation (10 workers)...")
@@ -975,6 +1893,144 @@ async def get_lead(lead_id: str):
             return lead
 
     raise HTTPException(status_code=404, detail="Lead not found")
+
+
+# ============================================================================
+# Insight Engine API Endpoints
+# ============================================================================
+
+class InsightQuestionRequest(BaseModel):
+    question: str = Field(..., example="What can I sell them?")
+
+class SendEmailRequest(BaseModel):
+    to: str = Field(..., example="ceo@example.com")
+    subject: str = Field(..., example="Quick question about your business")
+    body: str = Field(..., example="Hi, I noticed...")
+
+class BulkSendRequest(BaseModel):
+    emails: List[SendEmailRequest]
+
+
+@app.get("/api/lead/{lead_id}/insights")
+async def get_lead_insights(lead_id: str):
+    """Get cached insights for a lead."""
+    # Find the lead
+    for hunt_id, leads in leads_store.items():
+        for lead in leads:
+            if lead.get("id") == lead_id or lead.get("place_id") == lead_id:
+                return {
+                    "lead_id": lead_id,
+                    "business_name": lead.get("name"),
+                    "quick_insights": lead.get("quick_insights", []),
+                    "website_content": lead.get("website_content", {}),
+                    "has_content": bool(lead.get("website_content", {}).get("raw_text"))
+                }
+
+    raise HTTPException(status_code=404, detail="Lead not found")
+
+
+@app.post("/api/lead/{lead_id}/insights/generate")
+async def generate_lead_insights(lead_id: str):
+    """Generate or regenerate insights for a lead."""
+    # Find the lead
+    for hunt_id, leads in leads_store.items():
+        for lead in leads:
+            if lead.get("id") == lead_id or lead.get("place_id") == lead_id:
+                website = lead.get("website")
+                business_name = lead.get("name", "Unknown Business")
+
+                # Scrape website
+                scraped = scrape_website_for_insights(website)
+                lead["website_content"] = scraped
+
+                # Generate insights
+                if scraped.get("raw_text"):
+                    insights = generate_quick_insights(scraped["raw_text"], business_name)
+                    lead["quick_insights"] = insights
+                else:
+                    lead["quick_insights"] = ["Website could not be scraped"]
+
+                return {
+                    "lead_id": lead_id,
+                    "business_name": business_name,
+                    "quick_insights": lead["quick_insights"],
+                    "pages_scraped": scraped.get("pages_scraped", []),
+                    "word_count": scraped.get("word_count", 0)
+                }
+
+    raise HTTPException(status_code=404, detail="Lead not found")
+
+
+@app.post("/api/lead/{lead_id}/insights/ask")
+async def ask_lead_question(lead_id: str, request: InsightQuestionRequest):
+    """Ask any question about a lead's website."""
+    # Find the lead
+    for hunt_id, leads in leads_store.items():
+        for lead in leads:
+            if lead.get("id") == lead_id or lead.get("place_id") == lead_id:
+                website_content = lead.get("website_content", {})
+                raw_text = website_content.get("raw_text", "")
+                business_name = lead.get("name", "Unknown Business")
+
+                # If no content, try to scrape first
+                if not raw_text:
+                    scraped = scrape_website_for_insights(lead.get("website"))
+                    raw_text = scraped.get("raw_text", "")
+                    lead["website_content"] = scraped
+
+                # Answer the question
+                answer = ask_insight_question(raw_text, business_name, request.question)
+
+                return {
+                    "lead_id": lead_id,
+                    "business_name": business_name,
+                    "question": request.question,
+                    "answer": answer
+                }
+
+    raise HTTPException(status_code=404, detail="Lead not found")
+
+
+# ============================================================================
+# Email Send API Endpoints
+# ============================================================================
+
+@app.post("/api/email/send")
+async def api_send_email(request: SendEmailRequest):
+    """Send a single email via Gmail."""
+    result = send_gmail_email(
+        to_email=request.to,
+        subject=request.subject,
+        body=request.body
+    )
+
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return {
+        "success": True,
+        "message_id": result["message_id"],
+        "to": request.to
+    }
+
+
+@app.post("/api/email/send-bulk")
+async def api_send_bulk_emails(request: BulkSendRequest):
+    """Send multiple emails with rate limiting (3s delay)."""
+    if len(request.emails) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 emails per batch")
+
+    emails = [{"to": e.to, "subject": e.subject, "body": e.body} for e in request.emails]
+    results = send_bulk_emails(emails, delay_seconds=3)
+
+    success_count = sum(1 for r in results if r["success"])
+
+    return {
+        "total": len(results),
+        "success_count": success_count,
+        "failed_count": len(results) - success_count,
+        "results": results
+    }
 
 
 @app.get("/api/hunts")

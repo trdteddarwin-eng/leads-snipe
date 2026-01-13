@@ -19,8 +19,13 @@ import {
   FileJson,
   FileSpreadsheet,
   MoreVertical,
+  Send,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Rocket,
 } from 'lucide-react';
-import { StatsCard, LeadCard, LeadCardSkeleton } from '@/components';
+import { StatsCard, LeadCard, LeadCardSkeleton, InsightPanel, IntegratedOutreachPanel, BulkOutreachModal } from '@/components';
 import type { HuntDetails, Lead } from '@/lib/types';
 import { formatDate, formatCurrency, downloadJson, downloadCsv } from '@/lib/utils';
 
@@ -46,6 +51,98 @@ export default function HuntResultsPage({ params }: PageProps) {
   const [filterCeoEmail, setFilterCeoEmail] = useState(false);
   const [filterLinkedIn, setFilterLinkedIn] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Insight Panel state
+  const [insightPanelOpen, setInsightPanelOpen] = useState(false);
+  const [selectedInsightLead, setSelectedInsightLead] = useState<Lead | null>(null);
+
+  // View Insights handler
+  const handleViewInsights = (lead: Lead) => {
+    setSelectedInsightLead(lead);
+    setInsightPanelOpen(true);
+  };
+
+  // Close Insight Panel
+  const handleCloseInsightPanel = () => {
+    setInsightPanelOpen(false);
+    setTimeout(() => setSelectedInsightLead(null), 300); // Clear after animation
+  };
+
+  // Outreach Panel state
+  const [outreachPanelOpen, setOutreachPanelOpen] = useState(false);
+  const [selectedOutreachLead, setSelectedOutreachLead] = useState<Lead | null>(null);
+
+  // Send Email handler - Opens IntegratedOutreachPanel
+  const handleSendEmail = (lead: Lead) => {
+    setSelectedOutreachLead(lead);
+    setOutreachPanelOpen(true);
+  };
+
+  // Close Outreach Panel
+  const handleCloseOutreachPanel = () => {
+    setOutreachPanelOpen(false);
+    setTimeout(() => setSelectedOutreachLead(null), 300);
+  };
+
+  // Handle email sent - Update lead status in UI
+  const handleEmailSent = (lead: Lead) => {
+    // Could update local state to mark as contacted
+    console.log('Email sent to:', lead.name);
+  };
+
+  // Bulk Outreach Modal state
+  const [showBulkOutreach, setShowBulkOutreach] = useState(false);
+
+  // Get selected leads for bulk outreach
+  const selectedLeadsList = filteredLeads.filter(l => selectedLeads.has(l.id));
+
+  // Bulk Email sending state
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [emailSendResult, setEmailSendResult] = useState<{
+    sent: number;
+    failed: number;
+    total: number;
+  } | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
+
+  // Get leads with email drafts
+  const leadsWithDrafts = filteredLeads.filter(l =>
+    (selectedLeads.size > 0 ? selectedLeads.has(l.id) : true) &&
+    l.email_draft &&
+    (l.decision_maker?.email || l.email)
+  );
+
+  // Bulk send handler
+  const handleBulkSend = async () => {
+    if (leadsWithDrafts.length === 0) return;
+
+    setSendingEmails(true);
+    setEmailSendResult(null);
+
+    try {
+      const emails = leadsWithDrafts.map(lead => ({
+        to_email: lead.decision_maker?.email || lead.email,
+        subject: lead.email_draft!.subject,
+        body: lead.email_draft!.body,
+      }));
+
+      const result = await api.sendBulkEmails(emails);
+      setEmailSendResult({
+        sent: result.sent,
+        failed: result.failed,
+        total: result.total,
+      });
+    } catch (error) {
+      console.error('Bulk send failed:', error);
+      setEmailSendResult({
+        sent: 0,
+        failed: leadsWithDrafts.length,
+        total: leadsWithDrafts.length,
+      });
+    } finally {
+      setSendingEmails(false);
+    }
+  };
 
   // Fetch hunt results
   useEffect(() => {
@@ -183,8 +280,26 @@ export default function HuntResultsPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Export Actions */}
+          {/* Export & Send Actions */}
           <div className="flex items-center gap-3">
+            {/* Send Emails Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowSendModal(true)}
+              disabled={leadsWithDrafts.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-neutral-300 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              <span>Send Emails</span>
+              {leadsWithDrafts.length > 0 && (
+                <span className="px-2 py-0.5 bg-white/20 rounded-md text-xs">
+                  {leadsWithDrafts.length}
+                </span>
+              )}
+            </motion.button>
+
+            {/* Export Button */}
             <div className="relative">
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -338,13 +453,33 @@ export default function HuntResultsPage({ params }: PageProps) {
             </span>
           </button>
 
-          <div className="text-xs font-black uppercase tracking-widest text-white/40">
-            Showing {filteredLeads.length} of {leads.length}
+          <div className="flex items-center gap-4">
+            {/* Bulk Outreach Button - Shows when leads are selected */}
             {selectedLeads.size > 0 && (
-              <span className="ml-3 text-white">
-                ({selectedLeads.size} selected)
-              </span>
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowBulkOutreach(true)}
+                className="flex items-center gap-2 px-5 py-2 bg-white text-neutral-900 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg hover:bg-neutral-100 transition-all"
+              >
+                <Rocket className="w-4 h-4" />
+                <span>Bulk Outreach</span>
+                <span className="px-2 py-0.5 bg-neutral-900 text-white rounded-lg text-[10px]">
+                  {selectedLeads.size}
+                </span>
+              </motion.button>
             )}
+
+            <div className="text-xs font-black uppercase tracking-widest text-white/40">
+              Showing {filteredLeads.length} of {leads.length}
+              {selectedLeads.size > 0 && (
+                <span className="ml-3 text-white">
+                  ({selectedLeads.size} selected)
+                </span>
+              )}
+            </div>
           </div>
         </motion.div>
 
@@ -378,12 +513,150 @@ export default function HuntResultsPage({ params }: PageProps) {
                 lead={lead}
                 isSelected={selectedLeads.has(lead.id)}
                 onSelect={handleSelectLead}
+                onViewInsights={handleViewInsights}
+                onSendEmail={handleSendEmail}
                 delay={index * 0.05}
               />
             ))
           )}
         </div>
       </div>
+
+      {/* Insight Panel */}
+      <InsightPanel
+        lead={selectedInsightLead}
+        isOpen={insightPanelOpen}
+        onClose={handleCloseInsightPanel}
+      />
+
+      {/* Integrated Outreach Panel - Intel + Email */}
+      <IntegratedOutreachPanel
+        lead={selectedOutreachLead}
+        isOpen={outreachPanelOpen}
+        onClose={handleCloseOutreachPanel}
+        onEmailSent={handleEmailSent}
+      />
+
+      {/* Bulk Outreach Modal - Variable-Inject Mass Send */}
+      <BulkOutreachModal
+        leads={selectedLeadsList}
+        isOpen={showBulkOutreach}
+        onClose={() => {
+          setShowBulkOutreach(false);
+          setSelectedLeads(new Set()); // Clear selection after bulk send
+        }}
+      />
+
+      {/* Send Email Modal */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !sendingEmails && setShowSendModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl max-w-md w-full p-8"
+          >
+            {!emailSendResult ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Send className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-neutral-900 dark:text-white mb-2">
+                    Send {leadsWithDrafts.length} Emails?
+                  </h3>
+                  <p className="text-sm text-neutral-500">
+                    Emails will be sent from your connected Gmail account with 3 second delays to avoid spam filters.
+                  </p>
+                </div>
+
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Recipients:</span>
+                    <span className="font-bold text-neutral-900 dark:text-white">{leadsWithDrafts.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-neutral-500">Est. Time:</span>
+                    <span className="font-bold text-neutral-900 dark:text-white">~{Math.ceil(leadsWithDrafts.length * 3 / 60)} min</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowSendModal(false)}
+                    disabled={sendingEmails}
+                    className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-bold hover:bg-neutral-200 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkSend}
+                    disabled={sendingEmails}
+                    className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {sendingEmails ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>Send All</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center">
+                  <div className={`w-16 h-16 ${emailSendResult.failed === 0 ? 'bg-emerald-100' : 'bg-amber-100'} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                    {emailSendResult.failed === 0 ? (
+                      <CheckCircle className="w-8 h-8 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-8 h-8 text-amber-600" />
+                    )}
+                  </div>
+                  <h3 className="text-xl font-black text-neutral-900 dark:text-white mb-2">
+                    {emailSendResult.failed === 0 ? 'Emails Sent!' : 'Partially Sent'}
+                  </h3>
+                  <p className="text-sm text-neutral-500 mb-6">
+                    {emailSendResult.sent} of {emailSendResult.total} emails sent successfully
+                    {emailSendResult.failed > 0 && ` (${emailSendResult.failed} failed)`}
+                  </p>
+
+                  <div className="flex gap-4 justify-center mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-black text-emerald-600">{emailSendResult.sent}</div>
+                      <div className="text-xs text-neutral-500 uppercase tracking-wider">Sent</div>
+                    </div>
+                    {emailSendResult.failed > 0 && (
+                      <div className="text-center">
+                        <div className="text-2xl font-black text-red-500">{emailSendResult.failed}</div>
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider">Failed</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSendModal(false);
+                      setEmailSendResult(null);
+                    }}
+                    className="w-full px-4 py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
