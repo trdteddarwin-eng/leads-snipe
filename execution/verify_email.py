@@ -19,7 +19,7 @@ import json
 import socket
 import argparse
 import smtplib
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Callable
 from datetime import datetime
 
 # Try to import dns.resolver, fall back to socket-based lookup
@@ -296,10 +296,140 @@ def verify_email(email: str, do_smtp_check: bool = True) -> Dict:
     return result
 
 
+def verify_batch(leads: List[Dict], workers: int = 20, do_smtp: bool = True,
+                 progress_callback: Callable = None) -> List[Dict]:
+    """
+    Verify all emails in a list of leads in parallel.
+
+    Optimizations:
+    - MX record caching (same domain = same MX)
+    - Parallel processing with ThreadPoolExecutor
+    - Progress callback support
+
+    Args:
+        leads: List of lead dicts with 'email' field
+        workers: Number of parallel workers (default 20)
+        do_smtp: Whether to perform SMTP verification
+        progress_callback: Optional callback(completed, total)
+
+    Returns:
+        Same leads with email_verification field added
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # MX cache for efficiency (same domain = same MX result)
+    mx_cache = {}
+    cache_lock = threading.Lock()
+
+    stats = {
+        "total": len(leads),
+        "verified": 0,
+        "unverified": 0,
+        "no_email": 0
+    }
+    stats_lock = threading.Lock()
+    completed_count = [0]
+
+    def verify_single(lead: Dict) -> Dict:
+        """Verify a single lead's email."""
+        email = lead.get("email", "")
+
+        if not email:
+            with stats_lock:
+                stats["no_email"] += 1
+            return lead
+
+        email = email.strip().lower()
+
+        # Layer 1: Syntax
+        syntax_valid, syntax_msg = check_syntax(email)
+        if not syntax_valid:
+            lead["email_verification"] = {
+                "valid": False,
+                "deliverable": False,
+                "reason": f"Syntax: {syntax_msg}"
+            }
+            lead["email_verified"] = False
+            with stats_lock:
+                stats["unverified"] += 1
+            return lead
+
+        # Layer 2: MX (with caching)
+        domain = email.split('@')[1]
+        with cache_lock:
+            if domain in mx_cache:
+                has_mx, mx_msg, mx_servers = mx_cache[domain]
+            else:
+                has_mx, mx_msg, mx_servers = check_mx(email)
+                mx_cache[domain] = (has_mx, mx_msg, mx_servers)
+
+        if not has_mx:
+            lead["email_verification"] = {
+                "valid": False,
+                "deliverable": False,
+                "reason": f"MX: {mx_msg}"
+            }
+            lead["email_verified"] = False
+            with stats_lock:
+                stats["unverified"] += 1
+            return lead
+
+        # Layer 3: SMTP (if enabled)
+        if do_smtp:
+            smtp_valid, smtp_msg = check_smtp(email, mx_servers)
+            if not smtp_valid:
+                lead["email_verification"] = {
+                    "valid": True,  # Syntax and MX passed
+                    "deliverable": False,
+                    "reason": f"SMTP: {smtp_msg}"
+                }
+                lead["email_verified"] = False
+                with stats_lock:
+                    stats["unverified"] += 1
+                return lead
+
+        # All checks passed
+        lead["email_verification"] = {
+            "valid": True,
+            "deliverable": True,
+            "reason": "Verified"
+        }
+        lead["email_verified"] = True
+        with stats_lock:
+            stats["verified"] += 1
+
+        return lead
+
+    # Parallel verification
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {executor.submit(verify_single, lead): lead for lead in leads}
+
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                lead = futures[future]
+                lead["email_verification"] = {"error": str(e)}
+                lead["email_verified"] = False
+
+            completed_count[0] += 1
+            if progress_callback:
+                progress_callback(completed_count[0], len(leads))
+
+    print(f"\n[Email Verification] Summary:")
+    print(f"   Total: {stats['total']}")
+    print(f"   No email: {stats['no_email']}")
+    print(f"   Verified: {stats['verified']}")
+    print(f"   Unverified: {stats['unverified']}")
+
+    return leads
+
+
 def verify_leads_file(input_file: str, output_file: str = None, do_smtp: bool = True) -> Dict:
     """
     Verify all emails in a leads JSON file.
-    
+
     Returns summary statistics.
     """
     # Load leads

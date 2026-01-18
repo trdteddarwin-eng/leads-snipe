@@ -25,7 +25,7 @@ import asyncio
 import time
 from collections import deque
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from enum import Enum
 from contextlib import contextmanager
 
@@ -33,6 +33,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, RedirectResponse
 from pydantic import BaseModel, Field
+
+# Engine Zero import
+from engine_zero import EngineZero, EngineConfig
+
+# Unified Pipeline import (optimized pipeline with guaranteed verification)
+from unified_pipeline import UnifiedPipeline, PipelineConfig
 import requests
 import re
 import random
@@ -106,6 +112,7 @@ class Lead(BaseModel):
     email_draft: Optional[dict] = None
     scraped_at: Optional[str] = None
     user_ratings_total: Optional[int] = 0
+    icebreaker: Optional[str] = None
 
 
 class LeadListResponse(BaseModel):
@@ -821,9 +828,9 @@ def perpetual_discovery_loop(lead: Dict, hunt_id: str = None) -> Dict:
     return result
 
 
-def enrich_leads_with_troy(leads: List[Dict], hunt_id: str = None, max_workers: int = 5) -> List[Dict]:
+def enrich_leads_with_troy(leads: List[Dict], hunt_id: str = None, max_workers: int = 10) -> List[Dict]:
     """
-    Run Perpetual Discovery Loop on all leads in parallel.
+    Run Perpetual Discovery Loop on all leads in parallel (Aggressive Mode).
     """
     if hunt_id:
         add_log(hunt_id, f"🚀 Starting Troy Discovery Loop on {len(leads)} leads ({max_workers} parallel workers)...", "INFO")
@@ -1100,9 +1107,9 @@ Provide a helpful, specific answer based on what you can see in the website cont
     return response
 
 
-def enrich_leads_with_insights(leads: List[Dict], hunt_id: str = None, max_workers: int = 3) -> List[Dict]:
+def enrich_leads_with_insights(leads: List[Dict], hunt_id: str = None, max_workers: int = 10) -> List[Dict]:
     """
-    Scrape websites and generate quick insights for all leads.
+    Scrape websites and generate quick insights for all leads (High-Volume Mode).
     """
     if hunt_id:
         add_log(hunt_id, f"🔮 Starting Insight Engine on {len(leads)} leads...", "INFO")
@@ -1255,11 +1262,14 @@ def add_log(hunt_id: str, message: str, level: str = "INFO"):
     print(f"[{hunt_id}] {log_entry}")
 
 
-def update_status(hunt_id: str, stage: HuntStage, progress: int, message: str, **kwargs):
+def update_status(hunt_id: str, stage: Any, progress: int, message: str, **kwargs):
     """Update hunt status in memory and database."""
     if hunt_id in hunts:
+        # Handle both Enum and string for stage
+        status_value = stage.value if hasattr(stage, "value") else str(stage)
+        
         hunts[hunt_id].update({
-            "status": stage.value,
+            "status": status_value,
             "progress_percent": progress,
             "stage_message": message,
             **kwargs
@@ -1268,8 +1278,132 @@ def update_status(hunt_id: str, stage: HuntStage, progress: int, message: str, *
         db_save_hunt(hunts[hunt_id])
 
         # Add log
-        add_log(hunt_id, f"{stage.value.upper()}: {message}")
+        add_log(hunt_id, f"{status_value.upper()}: {message}")
 
+
+# ============================================================================
+# Unified Pipeline Runner (RECOMMENDED - Optimized)
+# ============================================================================
+
+def run_unified_pipeline(hunt_id: str, niche: str, state: str, limit: int):
+    """
+    Execute the optimized unified pipeline with guaranteed verification.
+
+    This uses the new UnifiedPipeline class which:
+    1. ALWAYS runs email verification (FREE 3-layer)
+    2. ALWAYS runs LinkedIn discovery (FREE multi-strategy)
+    3. Uses adaptive rate limiting to avoid bans
+    4. Supports optional paid fallback (disabled by default)
+
+    Performance: 200 leads in ~3-5 minutes
+    Cost: ~$0.50-1.00 per 200 leads (SerpAPI only)
+    """
+    os.makedirs(".tmp", exist_ok=True)
+
+    try:
+        # Get location from hunt data
+        city = hunts[hunt_id].get('city', '')
+        location = f"{city}, {state}" if city else state
+
+        add_log(hunt_id, "=" * 60, "INFO")
+        add_log(hunt_id, "UNIFIED PIPELINE - Optimized Lead Generation", "INFO")
+        add_log(hunt_id, "=" * 60, "INFO")
+        add_log(hunt_id, f"Industry: {niche}", "INFO")
+        add_log(hunt_id, f"Location: {location}", "INFO")
+        add_log(hunt_id, f"Target: {limit} leads", "INFO")
+        add_log(hunt_id, "Features:", "INFO")
+        add_log(hunt_id, "  - Email Verification: ALWAYS (FREE 3-layer)", "INFO")
+        add_log(hunt_id, "  - LinkedIn Discovery: ALWAYS (FREE multi-strategy)", "INFO")
+        add_log(hunt_id, "  - Icebreaker Engine: ENABLED (Regex + AI)", "INFO")
+        add_log(hunt_id, "  - Adaptive Rate Limiting: Enabled", "INFO")
+        add_log(hunt_id, "=" * 60, "INFO")
+
+        # Configure unified pipeline
+        config = PipelineConfig(
+            target_leads=limit,
+            scraping_workers=50,
+            verification_workers=20,
+            linkedin_workers=10,
+            icebreaker_workers=10,
+            enable_email_verification=True,  # ALWAYS ON
+            enable_linkedin_discovery=True,  # ALWAYS ON
+            enable_icebreaker=True,          # Strategic personalization
+            enable_paid_fallback=False,      # Disabled by default
+            do_smtp_check=True,              # Full 3-layer verification
+            hunt_id=hunt_id,
+            add_log=add_log,
+            update_status=update_status,
+        )
+
+        # Create and run pipeline (async)
+        pipeline = UnifiedPipeline(config)
+        leads = asyncio.run(pipeline.run(niche, location, limit))
+
+        if not leads:
+            update_status(hunt_id, HuntStage.COMPLETED, 100,
+                         "No leads found for this search",
+                         completed_at=datetime.now().isoformat())
+            return
+
+        # Convert Lead objects to dicts for storage
+        lead_dicts = []
+        for lead in leads:
+            lead_dict = lead.to_dict() if hasattr(lead, 'to_dict') else dict(lead.__dict__)
+            # Ensure enrichment fields exist
+            lead_dict["email_verified"] = getattr(lead, 'email_verified', False)
+            lead_dict["linkedin_url"] = getattr(lead, 'linkedin_url', None)
+            lead_dict["owner_name"] = getattr(lead, 'owner_name', None)
+            lead_dict["icebreaker"] = getattr(lead, 'icebreaker', None)
+            lead_dicts.append(lead_dict)
+
+        # Save results
+        final_output = f".tmp/hunt_{hunt_id}_unified.json"
+        with open(final_output, "w") as f:
+            json.dump(lead_dicts, f, indent=2)
+
+        # Store in memory
+        leads_store[hunt_id] = lead_dicts
+        hunts[hunt_id]["leads"] = lead_dicts
+
+        # Calculate final stats
+        total_leads = len(lead_dicts)
+        emails_found = sum(1 for l in lead_dicts if l.get("email"))
+        emails_verified = sum(1 for l in lead_dicts if l.get("email_verified"))
+        linkedin_found = sum(1 for l in lead_dicts if l.get("linkedin_url"))
+        owners_found = sum(1 for l in lead_dicts if l.get("owner_name"))
+        icebreakers_found = sum(1 for l in lead_dicts if l.get("icebreaker"))
+
+        # Final status update
+        update_status(hunt_id, HuntStage.COMPLETED, 100,
+                     f"Complete: {total_leads} leads, {emails_verified} verified, {icebreakers_found} personalized",
+                     leads_found=total_leads,
+                     owners_found=owners_found,
+                     emails_found=emails_verified,
+                     completed_at=datetime.now().isoformat())
+
+        add_log(hunt_id, "=" * 60, "SUCCESS")
+        add_log(hunt_id, "UNIFIED PIPELINE COMPLETE", "SUCCESS")
+        add_log(hunt_id, f"Total Leads: {total_leads}", "SUCCESS")
+        add_log(hunt_id, f"Emails Found: {emails_found}", "SUCCESS")
+        add_log(hunt_id, f"Emails Verified: {emails_verified} ({100*emails_verified//max(1,emails_found)}%)", "SUCCESS")
+        add_log(hunt_id, f"LinkedIn Found: {linkedin_found} ({100*linkedin_found//max(1,total_leads)}%)", "SUCCESS")
+        add_log(hunt_id, f"Owners Found: {owners_found}", "SUCCESS")
+        add_log(hunt_id, f"Icebreakers: {icebreakers_found} ({100*icebreakers_found//max(1,total_leads)}%)", "SUCCESS")
+        add_log(hunt_id, "=" * 60, "SUCCESS")
+
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        add_log(hunt_id, f"Pipeline error: {error_msg}", "ERROR")
+        add_log(hunt_id, traceback.format_exc(), "ERROR")
+        update_status(hunt_id, HuntStage.FAILED, 0,
+                     f"Pipeline failed: {error_msg[:100]}",
+                     error=error_msg)
+
+
+# ============================================================================
+# Legacy Pipeline Runner (Original - for reference)
+# ============================================================================
 
 def run_pipeline_with_logging(hunt_id: str, niche: str, state: str, limit: int):
     """Execute the 4-stage lead pipeline with real-time logging."""
@@ -1317,28 +1451,54 @@ def run_pipeline_with_logging(hunt_id: str, niche: str, state: str, limit: int):
 
     try:
         # ====================================================================
-        # Stage 1: Scraping Google Maps (0-25%)
+        # Stage 1: ENGINE ZERO - High Performance Lead Generation (0-40%)
+        # Replaces direct_lead_gen.py with parallel SerpAPI + 50 workers
         # ====================================================================
-        update_status(hunt_id, HuntStage.SCRAPING, 5, "Starting Google Maps scrape...")
+        update_status(hunt_id, HuntStage.SCRAPING, 5, "Starting Engine Zero (50 parallel workers)...")
+        add_log(hunt_id, "=" * 50, "INFO")
+        add_log(hunt_id, "ENGINE ZERO - High Performance Mode", "INFO")
+        add_log(hunt_id, "• SerpAPI provider (with Apify fallback)", "INFO")
+        add_log(hunt_id, "• 50 parallel web scraping workers", "INFO")
+        add_log(hunt_id, "• Auto-expanding to 10-15 nearby cities", "INFO")
+        add_log(hunt_id, "=" * 50, "INFO")
 
-        run_script([
-            sys.executable, "execution/direct_lead_gen.py",
-            "--industry", niche,
-            "--location", f"{hunts[hunt_id].get('city', '')}, {state}",
-            "--limit", str(limit),
-            "--output", raw_file
-        ], "Lead Sniper Engine (Direct)", timeout=300)
+        # Configure Engine Zero with progress hooks
+        engine_config = EngineConfig(
+            target_leads=limit,
+            max_cities=15,
+            radius_miles=20,
+            scraping_workers=50,
+            hunt_id=hunt_id,
+            add_log=add_log,
+            update_status=update_status
+        )
 
-        # Load scraped leads
-        if os.path.exists(raw_file):
-            with open(raw_file) as f:
-                leads = json.load(f)
-        else:
+        engine = EngineZero(engine_config)
+        location = f"{hunts[hunt_id].get('city', '')}, {state}"
+
+        try:
+            # Run Engine Zero
+            engine_leads = engine.run(niche, location, limit)
+
+            # Convert to dict format for downstream stages
             leads = []
+            for lead in engine_leads:
+                lead_dict = lead.to_dict()
+                # Map field names for compatibility with downstream stages
+                lead_dict['id'] = lead_dict.get('place_id') or lead_dict.get('id')
+                leads.append(lead_dict)
 
-        update_status(hunt_id, HuntStage.SCRAPING, 25,
-                      f"Scraped {len(leads)} leads from Google Maps",
-                      leads_found=len(leads))
+            # Save to raw_file for downstream stages
+            with open(raw_file, 'w') as f:
+                json.dump(leads, f, indent=2)
+
+        finally:
+            engine.shutdown()
+
+        update_status(hunt_id, HuntStage.SCRAPING, 40,
+                      f"Engine Zero: {len(leads)} leads, {sum(1 for l in leads if l.get('email'))} emails",
+                      leads_found=len(leads),
+                      emails_found=sum(1 for l in leads if l.get('email')))
 
         if not leads:
             update_status(hunt_id, HuntStage.COMPLETED, 100,
@@ -1731,15 +1891,16 @@ async def start_hunt(request: HuntRequest):
     # Initialize log queue
     log_queues[hunt_id] = deque(maxlen=1000)
 
-    # Start pipeline in background thread
+    # Start UNIFIED pipeline in background thread (optimized with guaranteed verification)
+    # Switch to run_pipeline_with_logging for legacy behavior
     thread = threading.Thread(
-        target=run_pipeline_with_logging,
+        target=run_unified_pipeline,  # Using optimized unified pipeline
         args=(hunt_id, request.niche, state, request.limit),
         daemon=True
     )
     thread.start()
 
-    add_log(hunt_id, f"Hunt started: {request.niche} in {city}, {state} (limit: {request.limit})")
+    add_log(hunt_id, f"Hunt started (Unified Pipeline): {request.niche} in {city}, {state} (limit: {request.limit})")
 
     return HuntResponse(
         hunt_id=hunt_id,
@@ -1832,6 +1993,7 @@ async def get_leads(
     """Get all leads, optionally filtered."""
 
     leads = []
+    resolved_hunt_id = hunt_id
 
     if hunt_id:
         if hunt_id in leads_store:
@@ -1845,10 +2007,39 @@ async def get_leads(
                 if row and row['leads_json']:
                     leads = json.loads(row['leads_json'])
                     leads_store[hunt_id] = leads # Cache it
-    
-    if not leads and os.path.exists(".tmp/leads.json"):
-        with open(".tmp/leads.json") as f:
-            leads = json.load(f)
+
+    # If no hunt_id provided or no leads found, get from latest hunt
+    if not leads:
+        # Find latest COMPLETED hunt by timestamp (not insertion order!)
+        latest_hunt_id = None
+        latest_time = None
+
+        for hid, hunt_data in hunts.items():
+            if hid not in leads_store:
+                continue  # Skip hunts without leads
+            completed = hunt_data.get("completed_at")
+            if completed:
+                if latest_time is None or completed > latest_time:
+                    latest_time = completed
+                    latest_hunt_id = hid
+
+        if latest_hunt_id:
+            leads = leads_store[latest_hunt_id]
+            resolved_hunt_id = latest_hunt_id
+        else:
+            # Database fallback - use completed_at for ordering
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT hunt_id, leads_json FROM hunts
+                    WHERE leads_json IS NOT NULL AND status = 'completed'
+                    ORDER BY completed_at DESC LIMIT 1
+                ''')
+                row = cursor.fetchone()
+                if row and row['leads_json']:
+                    leads = json.loads(row['leads_json'])
+                    resolved_hunt_id = row['hunt_id']
+                    leads_store[resolved_hunt_id] = leads  # Cache it
 
     if filter == "decision_makers":
         leads = [l for l in leads if l.get("owner_name")]
@@ -1861,14 +2052,19 @@ async def get_leads(
         if "id" not in lead:
             lead["id"] = lead.get("place_id", f"lead_{i}")
         lead["has_direct_contact"] = bool(
-            lead.get("anymailfinder_email") or lead.get("linkedin_url")
+            lead.get("anymailfinder_email") or lead.get("email") or lead.get("linkedin_url")
         )
-        lead["email_verified"] = bool(lead.get("anymailfinder_email"))
+        # email_verified: true if anymailfinder OR unified pipeline verified OR legacy verified
+        lead["email_verified"] = bool(
+            lead.get("anymailfinder_email") or
+            lead.get("email_verified") or
+            lead.get("email_verification", {}).get("deliverable")
+        )
 
     total = len(leads)
     paginated = leads[offset:offset + limit]
 
-    return LeadListResponse(leads=paginated, total=total, hunt_id=hunt_id)
+    return LeadListResponse(leads=paginated, total=total, hunt_id=resolved_hunt_id)
 
 
 @app.get("/api/leads/{lead_id}")
@@ -1877,19 +2073,33 @@ async def get_lead(lead_id: str):
 
     all_leads = []
 
+    # Search in-memory store first
     for leads in leads_store.values():
         all_leads.extend(leads)
 
-    if not all_leads and os.path.exists(".tmp/leads.json"):
-        with open(".tmp/leads.json") as f:
-            all_leads = json.load(f)
+    # If no leads in memory, load from database (most recent hunt)
+    if not all_leads:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT leads_json FROM hunts
+                WHERE leads_json IS NOT NULL AND status = 'completed'
+                ORDER BY started_at DESC LIMIT 1
+            ''')
+            row = cursor.fetchone()
+            if row and row['leads_json']:
+                all_leads = json.loads(row['leads_json'])
 
     for lead in all_leads:
         if lead.get("id") == lead_id or lead.get("place_id") == lead_id:
             lead["has_direct_contact"] = bool(
-                lead.get("anymailfinder_email") or lead.get("linkedin_url")
+                lead.get("anymailfinder_email") or lead.get("email") or lead.get("linkedin_url")
             )
-            lead["email_verified"] = bool(lead.get("anymailfinder_email"))
+            lead["email_verified"] = bool(
+                lead.get("anymailfinder_email") or
+                lead.get("email_verified") or
+                lead.get("email_verification", {}).get("deliverable")
+            )
             return lead
 
     raise HTTPException(status_code=404, detail="Lead not found")

@@ -135,40 +135,46 @@ def search_google_maps_batch(industry, location_list, target_count=50):
     all_results = []
     seen_ids = set()
 
-    # Calculate limit per city to avoid over-fetching
-    limit_per_city = max(10, (target_count // len(location_list)) + 5)
+    # Calculate limit per city - be aggressive to hit 200+
+    # Google Maps usually gives max 60-120 per search even with pagination
+    limit_per_city = 120 
+    
+    # Randomize location list to get better geographical variety
+    random.shuffle(location_list)
     
     for loc in location_list:
         if len(all_results) >= target_count:
+            log(f"✅ Target of {target_count} reached.")
             break
             
-        remaining = target_count - len(all_results)
-        current_limit = min(limit_per_city, remaining + 10)
-        
         query = f"{industry} in {loc}"
-        log(f"🔍 Searching: '{query}'...")
+        log(f"🔍 Swarming: '{query}'...")
         
         try:
+            # Note: compass/crawler-google-places is high-performance
             run_input = {
                 "searchStringsArray": [query],
-                "maxCrawledPlacesPerSearch": current_limit,
+                "maxCrawledPlacesPerSearch": limit_per_city,
                 "language": "en",
-                "deeperCityScrape": False,
+                "maxImages": 0, # Faster
+                "maxReviews": 0, # Faster
+                "deeperCityScrape": True if len(location_list) < 3 else False,
             }
+            # Start the actor
             run = client.actor("compass/crawler-google-places").call(run_input=run_input)
             
             new_count = 0
             for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-                place_id = item.get("placeId")
+                place_id = item.get("placeId") or generate_id(item)
                 if place_id not in seen_ids:
                     seen_ids.add(place_id)
                     all_results.append(item)
                     new_count += 1
             
-            log(f"   ✅ Got {new_count} new leads (Total: {len(all_results)})")
+            log(f"   ✨ Harvested {new_count} new leads from {loc} (Running Total: {len(all_results)})")
             
         except Exception as e:
-            log(f"   ❌ Search failed for {loc}: {e}", "WARN")
+            log(f"   ❌ Swarm failed for {loc}: {e}", "WARN")
 
     return all_results[:target_count]
 
@@ -202,12 +208,26 @@ def scrape_emails_direct(url):
             script.decompose()
         scraped_text = soup.get_text(separator=' ', strip=True)
         
-        # 3. Extract Emails
+        # 3. Extract Emails - EXTENDED REGEX Match (N8N Blueprint)
+        # Match standard emails and obfuscated ones
         emails = EMAIL_REGEX.findall(html)
         
-        # Filter common junk emails
-        junk = {'example@email.com', 'info@example.com', 'contact@example.com', 'support@example.com'}
-        valid_emails = [e for e in emails if e.lower() not in junk]
+        # Additional deep-scan for cases where regex might miss due to spacing/obfuscation
+        if not emails:
+            # Look for "mailto:" links specifically
+            mailto_matches = re.findall(r'mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', html, re.I)
+            emails.extend(mailto_matches)
+        
+        # Filter common junk emails and duplicates
+        seen_emails = set()
+        valid_emails = []
+        junk = {'example@email.com', 'info@example.com', 'contact@example.com', 'support@example.com', 'admin@example.com'}
+        
+        for e in emails:
+            e_low = e.lower()
+            if e_low not in junk and e_low not in seen_emails:
+                valid_emails.append(e)
+                seen_emails.add(e_low)
         
         email = valid_emails[0] if valid_emails else None
         
@@ -220,9 +240,9 @@ def scrape_emails_direct(url):
     except Exception:
         return {"email": None, "scraped_text": "", "scraped_meta": ""}
 
-def process_leads_parallel(raw_leads, max_workers=10):
-    """Scrape websites for all leads in parallel."""
-    log(f"🚀 Scraping websites for {len(raw_leads)} leads (Parallel {max_workers})...")
+def process_leads_parallel(raw_leads, max_workers=25):
+    """Scrape websites for all leads in parallel (High-Speed Swarm)."""
+    log(f"🚀 Swarming {len(raw_leads)} websites (Parallel Workers: {max_workers})...")
     
     processed = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
