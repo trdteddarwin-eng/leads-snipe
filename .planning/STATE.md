@@ -10,9 +10,9 @@ See: `.planning/PROJECT.md` (updated 2026-01-18)
 ## Current Position
 
 **Milestone:** v2.0 — Stealth Hybrid Lead Engine
-**Phase:** 2 of 7 — Sitemap Sniper ✓ COMPLETE
-**Next:** Phase 3 — Metadata Recon
-**Status:** Ready for Phase 3
+**Phase:** 3 of 7 — Metadata Recon
+**Plan:** `.planning/phases/03-metadata-recon/PLAN.md`
+**Status:** Ready to execute
 
 ```
 Progress: ██░░░░░░░░ 28%
@@ -40,8 +40,8 @@ Progress: ██░░░░░░░░ 28%
 ## Session Continuity
 
 **Last session:** 2026-01-18
-**Stopped at:** Phase 2 complete, ready for Phase 3
-**Resume file:** `.planning/phases/02-sitemap-sniper/SUMMARY.md`
+**Stopped at:** Phase 3 planned, ready for execution
+**Resume file:** `.planning/phases/03-metadata-recon/PLAN.md`
 
 ---
-*State updated: 2026-01-18 after Phase 2 execution*
+*State updated: 2026-01-18 after Phase 3 planning*
