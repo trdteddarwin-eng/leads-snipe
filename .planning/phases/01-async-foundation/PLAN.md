@@ -8,11 +8,11 @@
 
 | Requirement | Task | Status |
 |-------------|------|--------|
-| ASYNC-01: Async email verification with aiosmtplib | Task 1.1 | Pending |
-| ASYNC-02: Async MX resolution with aiodns | Task 1.2 | Pending |
-| ASYNC-03: Parallel verification (50+ concurrent) | Task 1.3 | Pending |
-| ASYNC-04: Catch-all domain detection | Task 1.4 | Pending |
-| ASYNC-05: Greylist retry logic | Task 1.5 | Pending |
+| ASYNC-01: Async email verification with aiosmtplib | Task 1.1 | Complete |
+| ASYNC-02: Async MX resolution with aiodns | Task 1.2 | Complete |
+| ASYNC-03: Parallel verification (50+ concurrent) | Task 1.3 | Complete |
+| ASYNC-04: Catch-all domain detection | Task 1.4 | Complete |
+| ASYNC-05: Greylist retry logic | Task 1.5 | Complete |
 
 ## Implementation Plan
 
