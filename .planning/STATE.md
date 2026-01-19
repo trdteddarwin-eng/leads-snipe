@@ -10,9 +10,9 @@ See: `.planning/PROJECT.md` (updated 2026-01-18)
 ## Current Position
 
 **Milestone:** v2.0 — Stealth Hybrid Lead Engine
-**Phase:** 1 of 7 — Async Foundation ✓ COMPLETE
-**Next:** Phase 2 — Sitemap Sniper
-**Status:** Ready for Phase 2
+**Phase:** 2 of 7 — Sitemap Sniper
+**Plan:** `.planning/phases/02-sitemap-sniper/PLAN.md`
+**Status:** Ready to execute
 
 ```
 Progress: █░░░░░░░░░ 14%
@@ -40,8 +40,8 @@ Progress: █░░░░░░░░░ 14%
 ## Session Continuity
 
 **Last session:** 2026-01-18
-**Stopped at:** Phase 1 complete, ready for Phase 2
-**Resume file:** `.planning/phases/01-async-foundation/SUMMARY.md`
+**Stopped at:** Phase 2 planned, ready for execution
+**Resume file:** `.planning/phases/02-sitemap-sniper/PLAN.md`
 
 ---
-*State updated: 2026-01-18 after Phase 1 execution*
+*State updated: 2026-01-18 after Phase 2 planning*
