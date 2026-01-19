@@ -8,8 +8,8 @@
 
 | Requirement | Task | Status |
 |-------------|------|--------|
-| META-01: SSL cert org extraction | Task 3.1 | Pending |
-| META-02: Org name as business identifier | Task 3.2 | Pending |
+| META-01: SSL cert org extraction | Task 3.1 | ✓ Complete |
+| META-02: Org name as business identifier | Task 3.2 | ✓ Complete |
 
 ## Implementation Plan
 
