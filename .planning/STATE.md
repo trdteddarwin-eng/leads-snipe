@@ -11,8 +11,8 @@ See: `.planning/PROJECT.md` (updated 2026-01-18)
 
 **Milestone:** v2.0 — Stealth Hybrid Lead Engine
 **Phase:** 1 of 7 — Async Foundation
-**Plan:** Not yet planned
-**Status:** Ready to plan
+**Plan:** `.planning/phases/01-async-foundation/PLAN.md`
+**Status:** Ready to execute
 
 ```
 Progress: ░░░░░░░░░░ 0%
@@ -40,8 +40,8 @@ Progress: ░░░░░░░░░░ 0%
 ## Session Continuity
 
 **Last session:** 2026-01-18
-**Stopped at:** Project initialization complete, ready for Phase 1 planning
-**Resume file:** None
+**Stopped at:** Phase 1 planned, ready for execution
+**Resume file:** `.planning/phases/01-async-foundation/PLAN.md`
 
 ---
-*State updated: 2026-01-18 after project initialization*
+*State updated: 2026-01-18 after Phase 1 planning*
