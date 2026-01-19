@@ -8,11 +8,11 @@
 
 | Requirement | Task | Status |
 |-------------|------|--------|
-| SITEMAP-01: Sitemap URL discovery | Task 2.1 | Pending |
-| SITEMAP-02: Recursive sitemap parsing | Task 2.2 | Pending |
-| SITEMAP-03: Contact page identification | Task 2.3 | Pending |
-| SITEMAP-04: Email extraction from pages | Task 2.4 | Pending |
-| SITEMAP-05: Staff name extraction | Task 2.5 | Pending |
+| SITEMAP-01: Sitemap URL discovery | Task 2.1 | Complete |
+| SITEMAP-02: Recursive sitemap parsing | Task 2.2 | Complete |
+| SITEMAP-03: Contact page identification | Task 2.3 | Complete |
+| SITEMAP-04: Email extraction from pages | Task 2.4 | Complete |
+| SITEMAP-05: Staff name extraction | Task 2.5 | Complete |
 
 ## Implementation Plan
 

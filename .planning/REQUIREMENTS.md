@@ -12,12 +12,12 @@
 - [x] **ASYNC-04**: System detects catch-all domains to avoid false positives
 - [x] **ASYNC-05**: System implements retry logic for greylisting (30-60s delay)
 
-### Sitemap Sniper
-- [ ] **SITEMAP-01**: System discovers sitemap URL from robots.txt or common paths
-- [ ] **SITEMAP-02**: System parses sitemap XML recursively (handles sitemap indexes)
-- [ ] **SITEMAP-03**: System identifies contact/about/team page URLs from sitemap
-- [ ] **SITEMAP-04**: System scrapes identified pages for email addresses
-- [ ] **SITEMAP-05**: System extracts staff names from team pages
+### Sitemap Sniper ✓
+- [x] **SITEMAP-01**: System discovers sitemap URL from robots.txt or common paths
+- [x] **SITEMAP-02**: System parses sitemap XML recursively (handles sitemap indexes)
+- [x] **SITEMAP-03**: System identifies contact/about/team page URLs from sitemap
+- [x] **SITEMAP-04**: System scrapes identified pages for email addresses
+- [x] **SITEMAP-05**: System extracts staff names from team pages
 
 ### Metadata Recon
 - [ ] **META-01**: System extracts organization name from SSL certificates
@@ -79,11 +79,11 @@
 | ASYNC-03 | Phase 1 | Complete |
 | ASYNC-04 | Phase 1 | Complete |
 | ASYNC-05 | Phase 1 | Complete |
-| SITEMAP-01 | Phase 2 | Pending |
-| SITEMAP-02 | Phase 2 | Pending |
-| SITEMAP-03 | Phase 2 | Pending |
-| SITEMAP-04 | Phase 2 | Pending |
-| SITEMAP-05 | Phase 2 | Pending |
+| SITEMAP-01 | Phase 2 | Complete |
+| SITEMAP-02 | Phase 2 | Complete |
+| SITEMAP-03 | Phase 2 | Complete |
+| SITEMAP-04 | Phase 2 | Complete |
+| SITEMAP-05 | Phase 2 | Complete |
 | META-01 | Phase 3 | Pending |
 | META-02 | Phase 3 | Pending |
 | LINKEDIN-01 | Phase 4 | Pending |
