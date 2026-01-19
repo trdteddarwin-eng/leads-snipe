@@ -269,6 +269,9 @@ def clean_org_name(org: str) -> str:
     if not org:
         return ""
 
+    # Strip whitespace first
+    cleaned = org.strip()
+
     # Remove common suffixes
     suffixes = [
         ', Inc.', ', Inc', ' Inc.', ' Inc',
@@ -278,10 +281,10 @@ def clean_org_name(org: str) -> str:
         ', Co.', ', Co', ' Co.', ' Co',
     ]
 
-    cleaned = org
     for suffix in suffixes:
         if cleaned.endswith(suffix):
             cleaned = cleaned[:-len(suffix)]
+            break  # Only remove one suffix
 
     return cleaned.strip()
 
