@@ -5,12 +5,12 @@
 
 ## v1 Requirements
 
-### Async Foundation
-- [ ] **ASYNC-01**: System verifies emails asynchronously using aiosmtplib
-- [ ] **ASYNC-02**: System resolves MX records asynchronously using aiodns
-- [ ] **ASYNC-03**: System can verify 50+ emails in parallel without blocking
-- [ ] **ASYNC-04**: System detects catch-all domains to avoid false positives
-- [ ] **ASYNC-05**: System implements retry logic for greylisting (30-60s delay)
+### Async Foundation ✓
+- [x] **ASYNC-01**: System verifies emails asynchronously using aiosmtplib
+- [x] **ASYNC-02**: System resolves MX records asynchronously using aiodns
+- [x] **ASYNC-03**: System can verify 50+ emails in parallel without blocking
+- [x] **ASYNC-04**: System detects catch-all domains to avoid false positives
+- [x] **ASYNC-05**: System implements retry logic for greylisting (30-60s delay)
 
 ### Sitemap Sniper
 - [ ] **SITEMAP-01**: System discovers sitemap URL from robots.txt or common paths
@@ -74,11 +74,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ASYNC-01 | Phase 1 | Pending |
-| ASYNC-02 | Phase 1 | Pending |
-| ASYNC-03 | Phase 1 | Pending |
-| ASYNC-04 | Phase 1 | Pending |
-| ASYNC-05 | Phase 1 | Pending |
+| ASYNC-01 | Phase 1 | Complete |
+| ASYNC-02 | Phase 1 | Complete |
+| ASYNC-03 | Phase 1 | Complete |
+| ASYNC-04 | Phase 1 | Complete |
+| ASYNC-05 | Phase 1 | Complete |
 | SITEMAP-01 | Phase 2 | Pending |
 | SITEMAP-02 | Phase 2 | Pending |
 | SITEMAP-03 | Phase 2 | Pending |
