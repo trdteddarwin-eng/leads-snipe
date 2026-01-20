@@ -9,13 +9,13 @@
 
 | # | Phase | Goal | Requirements | Status |
 |---|-------|------|--------------|--------|
-| 1 | Async Foundation | Replace sync verification with async | ASYNC-01 to ASYNC-05 | ✓ Complete |
-| 2 | Sitemap Sniper | Extract emails from contact pages | SITEMAP-01 to SITEMAP-05 | ✓ Complete |
-| 3 | Metadata Recon | Get org info from SSL certs | META-01 to META-02 | ✓ Complete |
-| 4 | LinkedIn Stealth | Find profiles via search snippets | LINKEDIN-01 to LINKEDIN-04 | ○ Pending |
-| 5 | Pattern Guerrilla | Guess and verify email patterns | PATTERN-01 to PATTERN-05 | ○ Pending |
-| 6 | Pipeline Integration | Connect components with fallback | PIPELINE-01 to PIPELINE-05 | ○ Pending |
-| 7 | Testing | Validate 80%+ discovery on 25 leads | TEST-01 to TEST-03 | ○ Pending |
+| 1 | Async Foundation | Replace sync verification with async | ASYNC-01 to ASYNC-05 | Complete |
+| 2 | Sitemap Sniper | Extract emails from contact pages | SITEMAP-01 to SITEMAP-05 | Complete |
+| 3 | Metadata Recon | Get org info from SSL certs | META-01 to META-02 | Complete |
+| 4 | LinkedIn Stealth | Find profiles via search snippets | LINKEDIN-01 to LINKEDIN-04 | Planned |
+| 5 | Pattern Guerrilla | Guess and verify email patterns | PATTERN-01 to PATTERN-05 | Pending |
+| 6 | Pipeline Integration | Connect components with fallback | PIPELINE-01 to PIPELINE-05 | Pending |
+| 7 | Testing | Validate 80%+ discovery on 25 leads | TEST-01 to TEST-03 | Pending |
 
 ---
 
@@ -110,6 +110,11 @@
 
 **Dependencies:** duckduckgo-search (new)
 
+**Plans:** 1 plan
+- [ ] PLAN.md — DDG search, URL extraction, snippet parsing, Bing fallback, tests
+
+**Status:** Planned (2026-01-20)
+
 ---
 
 ## Phase 5: Pattern Guerrilla
@@ -127,7 +132,7 @@
 1. System generates correct pattern variations for names
 2. System finds valid email via pattern guessing for 30%+ of leads
 3. System stops verification on first valid email (no wasted checks)
-4. System handles nicknames (Bob → Robert, etc.)
+4. System handles nicknames (Bob -> Robert, etc.)
 
 **Output:** `execution/pattern_guerrilla.py`
 
@@ -190,3 +195,4 @@ When all phases complete:
 
 ---
 *Roadmap created: 2026-01-18*
+*Phase 4 planned: 2026-01-20*
