@@ -110,8 +110,9 @@
 
 **Dependencies:** duckduckgo-search (new)
 
-**Plans:** 1 plan
-- [ ] PLAN.md — DDG search, URL extraction, snippet parsing, Bing fallback, tests
+**Plans:** 2 plans
+- [ ] 04-01-PLAN.md — Core search (DDG, Bing) and snippet parsing
+- [ ] 04-02-PLAN.md — Public API orchestration and unit tests
 
 **Status:** Planned (2026-01-20)
 
@@ -195,4 +196,4 @@ When all phases complete:
 
 ---
 *Roadmap created: 2026-01-18*
-*Phase 4 planned: 2026-01-20*
+*Phase 4 revised: 2026-01-20*
