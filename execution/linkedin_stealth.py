@@ -415,4 +415,160 @@ def parse_linkedin_snippet(title: str, body: str) -> Dict[str, Optional[str]]:
     return result
 
 
-# Placeholder for task 4.3 - will be added in subsequent task
+# =============================================================================
+# Task 4.3: Bing Fallback Search
+# =============================================================================
+
+# Bing search URL
+BING_SEARCH_URL = "https://www.bing.com/search"
+
+# Minimum delay between Bing requests (seconds)
+BING_MIN_DELAY = 3.0
+BING_MAX_DELAY = 5.0
+
+
+def _get_bing_headers() -> Dict[str, str]:
+    """
+    Get realistic headers for Bing requests.
+
+    Uses random user agent rotation to avoid detection.
+    """
+    user_agent = random.choice(USER_AGENTS)
+
+    return {
+        'User-Agent': user_agent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.bing.com/',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+    }
+
+
+def _extract_linkedin_from_bing_result(element) -> Optional[Dict]:
+    """
+    Extract LinkedIn URL and metadata from a Bing search result element.
+
+    Args:
+        element: BeautifulSoup element (li.b_algo)
+
+    Returns:
+        Dict with href, title, body or None
+    """
+    try:
+        # Find the title link
+        h2 = element.find('h2')
+        if not h2:
+            return None
+
+        link = h2.find('a', href=True)
+        if not link:
+            return None
+
+        href = link.get('href', '')
+
+        # Validate it's a LinkedIn profile URL
+        linkedin_url = _extract_linkedin_url(href)
+        if not linkedin_url:
+            return None
+
+        # Get title text
+        title = link.get_text(strip=True)
+
+        # Get snippet/body (usually in p tag or div.b_caption)
+        body = ""
+        caption = element.find('div', class_='b_caption')
+        if caption:
+            p = caption.find('p')
+            if p:
+                body = p.get_text(strip=True)
+
+        return {
+            'href': linkedin_url,
+            'title': title,
+            'body': body,
+        }
+
+    except Exception:
+        return None
+
+
+async def search_bing(name: str, company: str) -> Optional[Dict]:
+    """
+    Search Bing for LinkedIn profiles as fallback when DDG fails.
+
+    Uses HTML scraping with realistic headers to avoid bot detection.
+    More conservative delays (3-5s) as Bing is aggressive on rate limiting.
+
+    Args:
+        name: Person's name to search for
+        company: Company name for context
+
+    Returns:
+        Dict with keys: href, title, body - or None if not found/blocked
+
+    Note:
+        - Returns None immediately on 403/CAPTCHA (does not retry)
+        - Uses 3-5 second random delays
+        - Rotates User-Agent on each request
+    """
+    if not HAS_HTTPX:
+        return None
+
+    if not name or not company:
+        return None
+
+    # Build search query
+    query = f'site:linkedin.com/in "{name}" "{company}"'
+
+    # Build URL with query params
+    import urllib.parse
+    params = {
+        'q': query,
+        'count': '10',
+    }
+    url = f"{BING_SEARCH_URL}?{urllib.parse.urlencode(params)}"
+
+    # Random delay before request (3-5 seconds)
+    delay = random.uniform(BING_MIN_DELAY, BING_MAX_DELAY)
+    await asyncio.sleep(delay)
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            headers = _get_bing_headers()
+            response = await client.get(url, headers=headers)
+
+            # Handle rate limiting / blocking
+            if response.status_code in (403, 429):
+                # Blocked or rate limited - return None, don't retry
+                return None
+
+            if response.status_code != 200:
+                return None
+
+            # Check for CAPTCHA in response
+            if 'captcha' in response.text.lower() or 'unusual traffic' in response.text.lower():
+                return None
+
+            # Parse HTML
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find search results (li.b_algo > h2 a)
+            results = soup.find_all('li', class_='b_algo')
+
+            for result_elem in results:
+                result = _extract_linkedin_from_bing_result(result_elem)
+                if result:
+                    return result
+
+            # No valid LinkedIn URLs found
+            return None
+
+    except httpx.TimeoutException:
+        return None
+    except httpx.RequestError:
+        return None
+    except Exception:
+        return None
