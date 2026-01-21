@@ -12,7 +12,7 @@
 | 1 | Async Foundation | Replace sync verification with async | ASYNC-01 to ASYNC-05 | Complete |
 | 2 | Sitemap Sniper | Extract emails from contact pages | SITEMAP-01 to SITEMAP-05 | Complete |
 | 3 | Metadata Recon | Get org info from SSL certs | META-01 to META-02 | Complete |
-| 4 | LinkedIn Stealth | Find profiles via search snippets | LINKEDIN-01 to LINKEDIN-04 | Planned |
+| 4 | LinkedIn Stealth | Find profiles via search snippets | LINKEDIN-01 to LINKEDIN-04 | Complete |
 | 5 | Pattern Guerrilla | Guess and verify email patterns | PATTERN-01 to PATTERN-05 | Pending |
 | 6 | Pipeline Integration | Connect components with fallback | PIPELINE-01 to PIPELINE-05 | Pending |
 | 7 | Testing | Validate 80%+ discovery on 25 leads | TEST-01 to TEST-03 | Pending |
@@ -111,10 +111,10 @@
 **Dependencies:** duckduckgo-search (new)
 
 **Plans:** 2 plans
-- [ ] 04-01-PLAN.md — Core search (DDG, Bing) and snippet parsing
-- [ ] 04-02-PLAN.md — Public API orchestration and unit tests
+- [x] 04-01-PLAN.md — Core search (DDG, Bing) and snippet parsing
+- [x] 04-02-PLAN.md — Public API orchestration and unit tests
 
-**Status:** Planned (2026-01-20)
+**Completed:** 2026-01-20
 
 ---
 
