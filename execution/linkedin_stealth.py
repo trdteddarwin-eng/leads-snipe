@@ -232,4 +232,187 @@ async def search_duckduckgo(name: str, company: str, max_retries: int = 3) -> Op
     return None
 
 
-# Placeholder for tasks 4.2 and 4.3 - will be added in subsequent tasks
+# =============================================================================
+# Task 4.2: Snippet Name/Title Extraction
+# =============================================================================
+
+# Common LinkedIn title suffixes to strip
+LINKEDIN_SUFFIXES = [
+    ' | LinkedIn',
+    ' - LinkedIn',
+    ' on LinkedIn',
+    ' LinkedIn',
+]
+
+# Patterns for name validation
+NAME_MIN_LENGTH = 3
+NAME_MAX_LENGTH = 50
+NAME_MIN_WORDS = 2
+
+# Title prefixes/suffixes to preserve in names
+NAME_PREFIXES = {'dr', 'dr.', 'mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'prof', 'prof.'}
+NAME_SUFFIXES = {'jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'phd', 'md', 'esq', 'cpa'}
+
+
+def _clean_linkedin_title(title: str) -> str:
+    """Remove LinkedIn branding from title string."""
+    if not title:
+        return ""
+
+    cleaned = title.strip()
+    for suffix in LINKEDIN_SUFFIXES:
+        if cleaned.lower().endswith(suffix.lower()):
+            cleaned = cleaned[:-len(suffix)].strip()
+
+    return cleaned
+
+
+def _is_valid_name(name: str) -> bool:
+    """
+    Validate if a string looks like a person's name.
+
+    Rules:
+    - 2+ words (allows Dr. Jane, Jr. suffixes, etc.)
+    - Reasonable length (3-50 chars)
+    - Not all uppercase (probably acronym)
+    - Not all lowercase (probably not a name)
+    """
+    if not name:
+        return False
+
+    name = name.strip()
+
+    # Length check
+    if len(name) < NAME_MIN_LENGTH or len(name) > NAME_MAX_LENGTH:
+        return False
+
+    # Word count check
+    words = name.split()
+    if len(words) < NAME_MIN_WORDS:
+        return False
+
+    # Not all uppercase (unless 2 letters like initials)
+    if name.isupper() and len(name) > 4:
+        return False
+
+    # At least one word should be capitalized (not all lowercase)
+    has_capitalized = any(
+        word[0].isupper()
+        for word in words
+        if word and word[0].isalpha()
+    )
+    if not has_capitalized:
+        return False
+
+    return True
+
+
+def _extract_name_from_title(title_part: str) -> Optional[str]:
+    """Extract and validate a name from the first part of a title."""
+    if not title_part:
+        return None
+
+    name = title_part.strip()
+
+    # Handle case where name has trailing comma
+    if ',' in name:
+        name = name.split(',')[0].strip()
+
+    # Validate
+    if _is_valid_name(name):
+        return name
+
+    return None
+
+
+def _extract_title_from_part(title_part: str) -> Optional[str]:
+    """Extract job title from a title part, handling 'at Company' format."""
+    if not title_part:
+        return None
+
+    title = title_part.strip()
+
+    # Handle "Title at Company" format
+    if ' at ' in title.lower():
+        idx = title.lower().find(' at ')
+        title = title[:idx].strip()
+
+    # Handle trailing commas
+    if ',' in title:
+        title = title.split(',')[0].strip()
+
+    # Basic validation - not empty, reasonable length
+    if title and 2 < len(title) < 100:
+        return title
+
+    return None
+
+
+def parse_linkedin_snippet(title: str, body: str) -> Dict[str, Optional[str]]:
+    """
+    Parse LinkedIn search snippet to extract name and job title.
+
+    Handles common LinkedIn title formats:
+    - "John Smith - CEO - Company Inc | LinkedIn"
+    - "John Smith | LinkedIn"
+    - "Dr. Jane Doe - VP of Engineering | LinkedIn"
+    - "John Smith - Software Engineer at Company | LinkedIn"
+
+    Args:
+        title: The search result title (usually "Name - Title | LinkedIn")
+        body: The search result body/snippet (for additional context)
+
+    Returns:
+        Dict with keys 'name' and 'title', each Optional[str]
+        Never throws on malformed input.
+
+    Examples:
+        >>> parse_linkedin_snippet("John Smith - CEO | LinkedIn", "")
+        {'name': 'John Smith', 'title': 'CEO'}
+
+        >>> parse_linkedin_snippet("John Smith | LinkedIn", "")
+        {'name': 'John Smith', 'title': None}
+    """
+    result = {'name': None, 'title': None}
+
+    try:
+        if not title:
+            return result
+
+        # Clean LinkedIn branding
+        cleaned = _clean_linkedin_title(title)
+        if not cleaned:
+            return result
+
+        # Split by common delimiters
+        # Try ' - ' first (most common), then ' | '
+        if ' - ' in cleaned:
+            parts = cleaned.split(' - ')
+        elif ' | ' in cleaned:
+            parts = cleaned.split(' | ')
+        else:
+            # No delimiter - whole thing might be a name
+            if _is_valid_name(cleaned):
+                result['name'] = cleaned
+            return result
+
+        # First part is typically the name
+        if parts:
+            name = _extract_name_from_title(parts[0])
+            if name:
+                result['name'] = name
+
+        # Second part (if exists) is typically the title
+        if len(parts) > 1:
+            job_title = _extract_title_from_part(parts[1])
+            if job_title:
+                result['title'] = job_title
+
+    except Exception:
+        # Never throw on malformed input
+        pass
+
+    return result
+
+
+# Placeholder for task 4.3 - will be added in subsequent task
