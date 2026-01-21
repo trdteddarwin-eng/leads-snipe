@@ -10,22 +10,32 @@ Key Features:
 - Bing fallback (when DDG fails or rate limits)
 - Snippet parsing (extract name/title from search results)
 - No direct linkedin.com requests (avoids ToS issues)
+- Batch processing with concurrency control
 
-Usage:
-    from execution.linkedin_stealth import search_duckduckgo, search_bing, parse_linkedin_snippet
+Public API:
+    from execution.linkedin_stealth import find_linkedin, find_linkedin_batch, find_linkedin_sync
 
-    # Search for a LinkedIn profile
-    result = await search_duckduckgo("John Smith", "Acme Corp")
-    if result:
-        parsed = parse_linkedin_snippet(result['title'], result['body'])
-        print(f"Found: {parsed['name']} - {parsed['title']}")
+    # Async single search (recommended)
+    result = await find_linkedin("John Smith", "Acme Corp")
+    if result.linkedin_url:
+        print(f"Found: {result.linkedin_url}")
+
+    # Sync wrapper for non-async code
+    result = find_linkedin_sync("John Smith", "Acme Corp")
+
+    # Batch processing with concurrency control
+    leads = [{'name': 'John', 'company': 'Acme'}, ...]
+    results = await find_linkedin_batch(leads, max_concurrent=5)
+
+CLI:
+    python linkedin_stealth.py "John Smith" "Acme Corp"
 """
 
 import re
 import asyncio
 import random
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 from functools import partial
 
 try:
@@ -572,3 +582,216 @@ async def search_bing(name: str, company: str) -> Optional[Dict]:
         return None
     except Exception:
         return None
+
+
+# =============================================================================
+# Task 4.4: Public API & Multi-Strategy Orchestration
+# =============================================================================
+
+# Default confidence for snippet-extracted data (low - unverified)
+DEFAULT_CONFIDENCE = 0.3
+
+
+async def find_linkedin(name: str, company: str, location: str = "") -> LinkedInResult:
+    """
+    Find LinkedIn profile for a person using multi-strategy search.
+
+    Primary search uses DuckDuckGo. Falls back to Bing on DDG failure/rate-limit.
+    Never makes direct requests to linkedin.com.
+
+    Args:
+        name: Person's full name (e.g., "John Smith")
+        company: Company name for context (e.g., "Acme Corp")
+        location: Optional location hint (currently unused, for future expansion)
+
+    Returns:
+        LinkedInResult with linkedin_url, owner_name, owner_title, source, confidence
+        On failure, returns LinkedInResult with all fields None/empty
+
+    Example:
+        result = await find_linkedin("John Smith", "Acme Corp")
+        if result.linkedin_url:
+            print(f"Found: {result.linkedin_url}")
+            print(f"Name: {result.owner_name}, Title: {result.owner_title}")
+    """
+    # Validate inputs
+    if not name or not company:
+        return LinkedInResult()
+
+    # Strategy 1: DuckDuckGo (primary - no rate limits, no API key)
+    ddg_result = await search_duckduckgo(name, company)
+
+    if ddg_result:
+        # Parse snippet for name/title
+        parsed = parse_linkedin_snippet(ddg_result.get('title', ''), ddg_result.get('body', ''))
+
+        return LinkedInResult(
+            linkedin_url=ddg_result.get('href'),
+            owner_name=parsed.get('name'),
+            owner_title=parsed.get('title'),
+            source='duckduckgo',
+            confidence=DEFAULT_CONFIDENCE,
+            raw_result=ddg_result,
+        )
+
+    # Strategy 2: Bing fallback (on DDG failure/rate-limit)
+    bing_result = await search_bing(name, company)
+
+    if bing_result:
+        # Parse snippet for name/title
+        parsed = parse_linkedin_snippet(bing_result.get('title', ''), bing_result.get('body', ''))
+
+        return LinkedInResult(
+            linkedin_url=bing_result.get('href'),
+            owner_name=parsed.get('name'),
+            owner_title=parsed.get('title'),
+            source='bing',
+            confidence=DEFAULT_CONFIDENCE,
+            raw_result=bing_result,
+        )
+
+    # Both strategies failed - return empty result
+    return LinkedInResult()
+
+
+async def find_linkedin_batch(
+    leads: List[Dict],
+    max_concurrent: int = 5,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+) -> List[Dict]:
+    """
+    Find LinkedIn profiles for multiple leads with concurrency control.
+
+    Processes leads in parallel within semaphore limit (default 5 concurrent).
+    Uses asyncio.Semaphore to prevent overwhelming search engines.
+
+    Args:
+        leads: List of dicts with 'name' and 'company' keys
+               Example: [{'name': 'John Smith', 'company': 'Acme Corp'}, ...]
+        max_concurrent: Maximum concurrent searches (default 5, conservative)
+        progress_callback: Optional callback(completed: int, total: int) for progress
+
+    Returns:
+        List of dicts with original lead data plus:
+        - linkedin_url: Profile URL or None
+        - owner_name: Parsed name or None
+        - owner_title: Parsed title or None
+        - source: 'duckduckgo', 'bing', or '' if not found
+
+    Example:
+        leads = [
+            {'name': 'John Smith', 'company': 'Acme Corp', 'email': 'john@acme.com'},
+            {'name': 'Jane Doe', 'company': 'Tech Inc', 'email': 'jane@tech.com'},
+        ]
+        results = await find_linkedin_batch(leads, max_concurrent=3)
+        for r in results:
+            print(f"{r['name']}: {r.get('linkedin_url', 'Not found')}")
+    """
+    if not leads:
+        return []
+
+    semaphore = asyncio.Semaphore(max_concurrent)
+    completed = 0
+    total = len(leads)
+
+    async def process_lead(lead: Dict) -> Dict:
+        nonlocal completed
+
+        async with semaphore:
+            name = lead.get('name', '')
+            company = lead.get('company', '')
+
+            result = await find_linkedin(name, company)
+
+            # Merge original lead data with result
+            enriched = lead.copy()
+            enriched['linkedin_url'] = result.linkedin_url
+            enriched['owner_name'] = result.owner_name
+            enriched['owner_title'] = result.owner_title
+            enriched['source'] = result.source
+
+            completed += 1
+            if progress_callback:
+                try:
+                    progress_callback(completed, total)
+                except Exception:
+                    pass  # Don't let callback errors break processing
+
+            return enriched
+
+    # Process all leads with concurrency control
+    tasks = [process_lead(lead) for lead in leads]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Filter out exceptions and return valid results
+    return [r for r in results if isinstance(r, dict)]
+
+
+def find_linkedin_sync(name: str, company: str, location: str = "") -> LinkedInResult:
+    """
+    Synchronous wrapper for find_linkedin().
+
+    Convenience function for non-async code paths. Creates new event loop
+    if none exists, otherwise uses existing loop.
+
+    Args:
+        name: Person's full name
+        company: Company name for context
+        location: Optional location hint
+
+    Returns:
+        LinkedInResult (same as find_linkedin)
+
+    Example:
+        result = find_linkedin_sync("John Smith", "Acme Corp")
+        print(f"Found: {result.linkedin_url}")
+    """
+    try:
+        # Try to get existing event loop
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop - use asyncio.run()
+        return asyncio.run(find_linkedin(name, company, location))
+
+    # If there's already a running loop, we need to handle differently
+    # This is a rare case (usually from Jupyter notebooks or nested async)
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        future = pool.submit(asyncio.run, find_linkedin(name, company, location))
+        return future.result()
+
+
+# =============================================================================
+# CLI Interface
+# =============================================================================
+
+if __name__ == "__main__":
+    import sys
+
+    def main():
+        """CLI entry point for manual testing."""
+        if len(sys.argv) < 3:
+            print("Usage: python linkedin_stealth.py \"Name\" \"Company\"")
+            print("Example: python linkedin_stealth.py \"John Smith\" \"Acme Corp\"")
+            sys.exit(1)
+
+        name = sys.argv[1]
+        company = sys.argv[2]
+
+        print(f"Searching for: {name} at {company}")
+        print("-" * 50)
+
+        result = find_linkedin_sync(name, company)
+
+        print(f"LinkedIn URL: {result.linkedin_url or 'Not found'}")
+        print(f"Owner Name:   {result.owner_name or 'Not found'}")
+        print(f"Owner Title:  {result.owner_title or 'Not found'}")
+        print(f"Source:       {result.source or 'None'}")
+        print(f"Confidence:   {result.confidence:.2f}")
+
+        if result.linkedin_url:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
+    main()
